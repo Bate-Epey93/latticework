@@ -505,7 +505,7 @@ Object.values(DOMAINS).forEach(d => {
 // radial chord layout: all nodes on one circle, grouped into domain arcs,
 // connections drawn as Bézier chords bowing through the centre
 const domainKeys = Object.keys(DOMAINS);
-const CX=580, CY=580, R=430;
+const CX=640, CY=640, R=400;
 const GAP = 0.12; // radians of breathing room between domain groups
 const ordered = [];
 domainKeys.forEach(k => MODELS.filter(m => m.d===k).forEach(m => ordered.push(m)));
@@ -566,7 +566,7 @@ MODELS.forEach(m => {
   g.setAttribute("aria-label", m.name);
   const p = positions[m.id];
   const c = document.createElementNS(SVGNS,"circle");
-  c.setAttribute("cx",p.x); c.setAttribute("cy",p.y); c.setAttribute("r",6.5);
+  c.setAttribute("cx",p.x); c.setAttribute("cy",p.y); c.setAttribute("r",7.5);
   c.setAttribute("fill",DOMAINS[m.d].color);
   c.setAttribute("stroke","var(--node-halo)"); c.setAttribute("stroke-width","1.5");
   const t = document.createElementNS(SVGNS,"text");

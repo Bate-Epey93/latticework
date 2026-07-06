@@ -348,9 +348,9 @@ p+p{margin-top:12px}
 .lat-edge.hot{stroke:var(--accent);opacity:1;stroke-width:1.6}
 .lat-node{cursor:pointer}
 .lat-node circle{transition:r .15s}
-.lat-node:hover circle,.lat-node.sel circle{r:9}
+.lat-node:hover circle,.lat-node.sel circle{r:11}
 .lat-node text{
-  font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.02em;fill:var(--muted);
+  font-family:'IBM Plex Mono',monospace;font-size:20px;letter-spacing:.02em;fill:var(--muted);
   pointer-events:none;
 }
 .lat-node.sel text{fill:var(--ink);font-weight:500}
