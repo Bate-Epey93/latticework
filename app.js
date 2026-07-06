@@ -431,14 +431,14 @@ function buildFilters(){
     const b = document.createElement("button");
     b.className = "f-btn" + (key===activeFilter ? " on" : "");
     b.textContent = label;
-    if(key===activeFilter && hex) b.style.background = hex;
+    if(key===activeFilter && hex) b.style.background = hex;  /* hex here is DOMAINS[k].color (var) */
     if(key===activeFilter && !hex) b.style.background = "var(--chalk)";
     b.addEventListener("click", () => { activeFilter = key; buildFilters(); renderModels(); });
     filterRow.appendChild(b);
   };
   filterRow.innerHTML = "";
   mk("all","All 38",null);
-  Object.entries(DOMAINS).forEach(([k,d]) => mk(k,d.name,d.hex));
+  Object.entries(DOMAINS).forEach(([k,d]) => mk(k,d.name,d.color));
 }
 
 function fieldHtml(label, html, cls){
@@ -455,7 +455,7 @@ function renderModels(){
       `<button class="mlink" data-goto="${l}">${byId[l].code} · ${byId[l].short}</button>`).join("");
     card.innerHTML = `
       <button class="mcard-head" aria-expanded="false">
-        <span class="mcode" style="color:${DOMAINS[m.d].hex}">${m.code}</span>
+        <span class="mcode" style="color:${DOMAINS[m.d].color}">${m.code}</span>
         <span class="mname">${m.name}<span class="messence">${m.essence}</span></span>
         <span class="mtoggle">+</span>
       </button>
@@ -498,30 +498,40 @@ const latLegend = document.getElementById("latLegend");
 
 Object.values(DOMAINS).forEach(d => {
   const s = document.createElement("span");
-  s.innerHTML = `<i style="background:${d.hex}"></i>${d.name}`;
+  s.innerHTML = `<i style="background:${d.color}"></i>${d.name}`;
   latLegend.appendChild(s);
 });
 
-// cluster positions around an ellipse
+// radial chord layout: all nodes on one circle, grouped into domain arcs,
+// connections drawn as Bézier chords bowing through the centre
 const domainKeys = Object.keys(DOMAINS);
-const CX=500, CY=372, RX=352, RY=272;
-const clusterCenter = {};
-domainKeys.forEach((k,i) => {
-  const a = -Math.PI/2 + (i/domainKeys.length)*Math.PI*2;
-  clusterCenter[k] = {x: CX+RX*Math.cos(a), y: CY+RY*Math.sin(a), a};
-});
-// place nodes in each cluster on a small arc facing outward
-const positions = {};
-domainKeys.forEach(k => {
-  const nodes = MODELS.filter(m => m.d===k);
-  const c = clusterCenter[k];
-  const spread = Math.min(1.9, 0.52*nodes.length);
-  nodes.forEach((m,i) => {
-    const t = nodes.length===1 ? 0 : (i/(nodes.length-1) - .5);
-    const a = c.a + t*spread;
-    const r = 58 + (i%2)*26;
-    positions[m.id] = {x: c.x + r*Math.cos(a)*0.55, y: c.y + r*Math.sin(a)*0.9};
+const CX=580, CY=580, R=430;
+const GAP = 0.12; // radians of breathing room between domain groups
+const ordered = [];
+domainKeys.forEach(k => MODELS.filter(m => m.d===k).forEach(m => ordered.push(m)));
+const step = (Math.PI*2 - GAP*domainKeys.length) / MODELS.length;
+const positions = {}, angles = {};
+{
+  let a = -Math.PI/2, prev = null;
+  ordered.forEach(m => {
+    if(prev && m.d !== prev) a += GAP;
+    prev = m.d;
+    angles[m.id] = a;
+    positions[m.id] = {x: CX + R*Math.cos(a), y: CY + R*Math.sin(a)};
+    a += step;
   });
+}
+
+// domain arc bands behind the nodes
+domainKeys.forEach(k => {
+  const ids = MODELS.filter(m => m.d===k).map(m => m.id);
+  const a0 = angles[ids[0]] - step*0.38, a1 = angles[ids[ids.length-1]] + step*0.38;
+  const arc = document.createElementNS(SVGNS,"path");
+  const large = (a1-a0) > Math.PI ? 1 : 0;
+  arc.setAttribute("d", `M ${CX+R*Math.cos(a0)} ${CY+R*Math.sin(a0)} A ${R} ${R} 0 ${large} 1 ${CX+R*Math.cos(a1)} ${CY+R*Math.sin(a1)}`);
+  arc.setAttribute("class","lat-arc");
+  arc.setAttribute("stroke", DOMAINS[k].color);
+  svg.appendChild(arc);
 });
 
 // edges (dedupe)
@@ -533,9 +543,13 @@ MODELS.forEach(m => m.links.forEach(l => {
 
 const edgeEls = {};
 edges.forEach(([a,b]) => {
-  const ln = document.createElementNS(SVGNS,"line");
-  ln.setAttribute("x1",positions[a].x); ln.setAttribute("y1",positions[a].y);
-  ln.setAttribute("x2",positions[b].x); ln.setAttribute("y2",positions[b].y);
+  const p1 = positions[a], p2 = positions[b];
+  // control points pulled toward the centre — closer chords bow less
+  const pull = 0.72;
+  const c1x = p1.x + (CX-p1.x)*pull, c1y = p1.y + (CY-p1.y)*pull;
+  const c2x = p2.x + (CX-p2.x)*pull, c2y = p2.y + (CY-p2.y)*pull;
+  const ln = document.createElementNS(SVGNS,"path");
+  ln.setAttribute("d", `M ${p1.x} ${p1.y} C ${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`);
   ln.setAttribute("class","lat-edge");
   svg.appendChild(ln);
   (edgeEls[a]=edgeEls[a]||[]).push(ln);
@@ -553,11 +567,16 @@ MODELS.forEach(m => {
   const p = positions[m.id];
   const c = document.createElementNS(SVGNS,"circle");
   c.setAttribute("cx",p.x); c.setAttribute("cy",p.y); c.setAttribute("r",6.5);
-  c.setAttribute("fill",DOMAINS[m.d].hex);
-  c.setAttribute("stroke","#FFFFFF"); c.setAttribute("stroke-width","1.5");
+  c.setAttribute("fill",DOMAINS[m.d].color);
+  c.setAttribute("stroke","var(--node-halo)"); c.setAttribute("stroke-width","1.5");
   const t = document.createElementNS(SVGNS,"text");
-  t.setAttribute("x",p.x); t.setAttribute("y",p.y - 13);
-  t.setAttribute("text-anchor","middle");
+  const ang = angles[m.id], deg = ang*180/Math.PI;
+  const leftSide = Math.cos(ang) < -1e-6;
+  const lx = CX + (R+16)*Math.cos(ang), ly = CY + (R+16)*Math.sin(ang);
+  t.setAttribute("x",lx); t.setAttribute("y",ly);
+  t.setAttribute("dy","0.35em");
+  t.setAttribute("text-anchor", leftSide ? "end" : "start");
+  t.setAttribute("transform", `rotate(${leftSide ? deg+180 : deg} ${lx} ${ly})`);
   t.textContent = m.short;
   g.appendChild(c); g.appendChild(t);
   const select = () => selectNode(m.id);
@@ -575,10 +594,10 @@ function selectNode(id){
   (edgeEls[id]||[]).forEach(e=>e.classList.add("hot"));
   const m = byId[id];
   const threads = m.links.map(l => {
-    return `<p style="margin-top:8px">→ <b style="color:${DOMAINS[byId[l].d].hex}">${byId[l].name}</b> — <span>${threadNote(id,l)}</span></p>`;
+    return `<p style="margin-top:8px">→ <b style="color:${DOMAINS[byId[l].d].color}">${byId[l].name}</b> — <span>${threadNote(id,l)}</span></p>`;
   }).join("");
   latDetail.innerHTML = `
-    <div class="ld-name" style="color:${DOMAINS[m.d].hex}">${m.code} · ${m.name}</div>
+    <div class="ld-name" style="color:${DOMAINS[m.d].color}">${m.code} · ${m.name}</div>
     <p>${m.essence} ${m.mech.split(". ")[0]}.</p>
     <div style="margin-top:10px"><span class="chip">Threads</span></div>
     ${threads}
@@ -714,7 +733,7 @@ function nextCard(){
   const m = byId[current];
   drillCount.textContent = `${deckLabel} · ${queue.length+1} remaining`;
   drillDomain.textContent = m.code;
-  drillDomain.style.color = DOMAINS[m.d].hex;
+  drillDomain.style.color = DOMAINS[m.d].color;
   drillQ.textContent = m.drill.q;
   drillA.innerHTML = m.drill.a + `<br><br><em style="color:var(--chalk-faint)">Hook: ${m.hook}</em>`;
   revealBtn.style.display = "inline-block";
@@ -753,6 +772,29 @@ function renderProgress(){
 buildDeckButtons();
 renderProgress();
 selectNode("fp");
+/* ================= THEME ================= */
+const themeMeta = document.querySelector('meta[name="theme-color"]');
+const darkMql = window.matchMedia("(prefers-color-scheme: dark)");
+function themePref(){ return sGet("lattice_theme") || "auto"; }
+function applyTheme(){
+  const pref = themePref();
+  const dark = pref === "dark" || (pref === "auto" && darkMql.matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  if(themeMeta) themeMeta.setAttribute("content", dark ? "#161310" : "#F7F4ED");
+  document.querySelectorAll(".theme-opt").forEach(b => b.classList.toggle("on", b.dataset.theme === pref));
+}
+darkMql.addEventListener("change", () => { if(themePref() === "auto") applyTheme(); });
+document.querySelectorAll(".theme-opt").forEach(b => b.addEventListener("click", () => {
+  sSet("lattice_theme", b.dataset.theme); applyTheme();
+}));
+const settingsBtn = document.getElementById("settingsBtn");
+const settingsPop = document.getElementById("settingsPop");
+settingsBtn.addEventListener("click", e => { e.stopPropagation(); settingsPop.classList.toggle("open"); });
+document.addEventListener("click", e => {
+  if(settingsPop.classList.contains("open") && !settingsPop.contains(e.target)) settingsPop.classList.remove("open");
+});
+applyTheme();
+
 /* ================= PWA ================= */
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));

@@ -35,6 +35,9 @@
   --glass-blur:blur(16px) saturate(1.5);
   --glass-inset:inset 0 1px 0 rgba(255,255,255,.8), inset 0 0 0 1px rgba(255,255,255,.3);
   --shadow:0 1px 2px rgba(33,30,25,.05), 0 12px 32px -14px rgba(33,30,25,.16);
+  --lat-edge:#DCD6C7;
+  --node-halo:#FFFFFF;
+  color-scheme:light;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -158,6 +161,48 @@ nav.tabs{
   -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.22), 0 4px 12px -4px rgba(33,30,25,.35);
 }
+
+/* ---------- settings ---------- */
+.tabs-inner{padding-right:64px}
+.settings-btn{
+  position:absolute;right:14px;bottom:11px;
+  width:34px;height:34px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  appearance:none;cursor:pointer;
+  border:1px solid var(--glass-edge);
+  background:rgba(255,255,255,.5);
+  -webkit-backdrop-filter:blur(10px) saturate(1.4);
+  backdrop-filter:blur(10px) saturate(1.4);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8);
+  color:var(--muted);
+  transition:color .15s, transform .3s;
+}
+.settings-btn svg{width:16px;height:16px}
+.settings-btn:hover{color:var(--ink);transform:rotate(30deg)}
+.settings-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.settings-pop{
+  position:absolute;right:14px;top:calc(100% + 8px);
+  display:none;min-width:220px;padding:14px;
+  background:var(--glass-strong);
+  -webkit-backdrop-filter:blur(24px) saturate(1.5);
+  backdrop-filter:blur(24px) saturate(1.5);
+  border:1px solid var(--glass-edge);border-radius:16px;
+  box-shadow:var(--shadow), var(--glass-inset);
+}
+.settings-pop.open{display:block;animation:fadeUp .2s ease}
+.sp-label{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--faint);margin-bottom:10px;
+}
+.sp-row{display:flex;gap:6px}
+.theme-opt{
+  flex:1;appearance:none;cursor:pointer;
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  padding:8px 0;border-radius:99px;border:1px solid var(--glass-edge);
+  background:rgba(255,255,255,.4);color:var(--muted);transition:all .15s;
+}
+.theme-opt:hover{color:var(--ink)}
+.theme-opt.on{background:var(--ink);color:var(--bg);border-color:transparent}
 
 /* ---------- layout ---------- */
 main{max-width:var(--maxw);margin:0 auto;padding:48px 24px 110px}
@@ -288,13 +333,14 @@ p+p{margin-top:12px}
   padding:12px;
 }
 #latticeSvg{width:100%;height:auto;display:block}
-.lat-edge{stroke:#DCD6C7;stroke-width:1;opacity:.75;transition:opacity .2s,stroke .2s}
+.lat-edge{fill:none;stroke:var(--lat-edge);stroke-width:1;opacity:.65;transition:opacity .2s,stroke .2s}
+.lat-arc{fill:none;stroke-width:3;opacity:.35;stroke-linecap:round}
 .lat-edge.hot{stroke:var(--accent);opacity:1;stroke-width:1.6}
 .lat-node{cursor:pointer}
 .lat-node circle{transition:r .15s}
 .lat-node:hover circle,.lat-node.sel circle{r:9}
 .lat-node text{
-  font-family:'IBM Plex Mono',monospace;font-size:9.5px;fill:var(--muted);
+  font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.02em;fill:var(--muted);
   pointer-events:none;
 }
 .lat-node.sel text{fill:var(--ink);font-weight:500}
@@ -371,3 +417,89 @@ footer{
   font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.14em;
   color:var(--faint);text-align:center;
 }
+
+/* ============================================================
+   Dark theme — sumi ink on night washi
+   ============================================================ */
+html[data-theme="dark"]{
+  --bg:#161310;
+  --surface:#1E1A15;
+  --surface-2:#231F19;
+  --ink:#EDE7DA;
+  --muted:#A59E8F;
+  --faint:#7A746A;
+  --line:#332E26;
+  --line-soft:#2A261F;
+  --accent:#D95B31;
+  --accent-deep:#E97646;
+  --accent-soft:#3A241B;
+  --chalk:#EDE7DA;
+  --chalk-faint:#7A746A;
+  --d-core:#B5AE9E;
+  --d-life:#8FBF8F;
+  --d-build:#7AAFD4;
+  --d-mkt:#DE9366;
+  --d-psy:#B195DB;
+  --d-com:#72C4B2;
+  --d-dec:#D4AE52;
+  --glass:rgba(32,28,22,.55);
+  --glass-strong:rgba(40,35,28,.78);
+  --glass-edge:rgba(255,255,255,.09);
+  --glass-inset:inset 0 1px 0 rgba(255,255,255,.08), inset 0 0 0 1px rgba(255,255,255,.03);
+  --shadow:0 1px 2px rgba(0,0,0,.35), 0 12px 32px -14px rgba(0,0,0,.55);
+  --lat-edge:#3B362D;
+  --node-halo:#241F19;
+  color-scheme:dark;
+}
+html[data-theme="dark"] body::before{
+  background:
+    radial-gradient(42% 36% at 12% 6%,  rgba(217,91,49,.09),   transparent 70%),
+    radial-gradient(38% 32% at 88% 14%, rgba(100,160,205,.08), transparent 70%),
+    radial-gradient(44% 38% at 80% 84%, rgba(125,180,125,.07), transparent 70%),
+    radial-gradient(36% 32% at 16% 80%, rgba(205,165,75,.06),  transparent 70%),
+    radial-gradient(30% 26% at 50% 45%, rgba(160,125,205,.05), transparent 70%);
+}
+html[data-theme="dark"] .method::before,
+html[data-theme="dark"] .mcard::before,
+html[data-theme="dark"] .lattice-wrap::before,
+html[data-theme="dark"] .lat-detail::before,
+html[data-theme="dark"] .drill-stage::before,
+html[data-theme="dark"] .proto::before{
+  background:linear-gradient(150deg, rgba(255,255,255,.07), rgba(255,255,255,0) 42%);
+}
+html[data-theme="dark"] .masthead::before{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23EDE7DA' stroke-opacity='0.05'%3E%3Ccircle cx='28' cy='28' r='2.2'/%3E%3Ccircle cx='0' cy='0' r='2.2'/%3E%3Ccircle cx='56' cy='0' r='2.2'/%3E%3Ccircle cx='0' cy='56' r='2.2'/%3E%3Ccircle cx='56' cy='56' r='2.2'/%3E%3Cpath d='M28 8v10M28 38v10M8 28h10M38 28h10'/%3E%3C/g%3E%3C/svg%3E");
+}
+html[data-theme="dark"] nav.tabs{
+  background:rgba(22,19,16,.6);
+  border-bottom-color:rgba(255,255,255,.07);
+  box-shadow:inset 0 -1px 0 rgba(255,255,255,.04);
+}
+html[data-theme="dark"] .tab-btn:hover{background:rgba(255,255,255,.08)}
+html[data-theme="dark"] .tab-btn.active{
+  background:rgba(237,231,218,.92);color:#161310;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6), 0 4px 12px -4px rgba(0,0,0,.5);
+}
+html[data-theme="dark"] .btn{
+  background:rgba(255,255,255,.06);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09), 0 2px 8px -2px rgba(0,0,0,.4);
+}
+html[data-theme="dark"] .btn:hover{border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.12)}
+html[data-theme="dark"] .btn.primary{
+  background:rgba(217,91,49,.88);border-color:rgba(233,118,70,.5);color:#fff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28), 0 4px 14px -4px rgba(0,0,0,.6);
+}
+html[data-theme="dark"] .btn.primary:hover{background:rgba(233,118,70,.92)}
+html[data-theme="dark"] .f-btn{background:rgba(255,255,255,.05);box-shadow:inset 0 1px 0 rgba(255,255,255,.07)}
+html[data-theme="dark"] .f-btn:hover{border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.1)}
+html[data-theme="dark"] .f-btn.on{color:#171410}
+html[data-theme="dark"] .mlink{background:rgba(255,255,255,.05);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+html[data-theme="dark"] .chip{background:rgba(255,255,255,.05);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+html[data-theme="dark"] .mcard:hover{border-color:rgba(255,255,255,.16)}
+html[data-theme="dark"] .settings-btn{background:rgba(255,255,255,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+html[data-theme="dark"] .theme-opt{background:rgba(255,255,255,.05)}
+html[data-theme="dark"] .g-again{border-color:rgba(224,144,128,.4);color:#E89B8B;background:rgba(179,64,46,.16)}
+html[data-theme="dark"] .g-hard{border-color:rgba(217,200,138,.35);color:#D9C88A;background:rgba(161,126,35,.16)}
+html[data-theme="dark"] .g-good{border-color:rgba(156,195,156,.35);color:#9CC39C;background:rgba(78,124,78,.16)}
+html[data-theme="dark"] .g-easy{border-color:rgba(143,195,222,.35);color:#8FC3DE;background:rgba(47,107,147,.16)}
+html[data-theme="dark"] ::selection{background:var(--accent);color:#161310}
