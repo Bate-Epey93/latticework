@@ -40,6 +40,16 @@
   color-scheme:light;
 }
 *{margin:0;padding:0;box-sizing:border-box}
+/* mobile tap behaviour: no grey tap flash, no lingering focus ring after touch,
+   no accidental text selection on interactive chrome */
+html{-webkit-tap-highlight-color:transparent}
+button,.lat-node{touch-action:manipulation}
+button:focus:not(:focus-visible),
+.lat-node:focus:not(:focus-visible){outline:none}
+button,nav.tabs,#latticeSvg,.settings-pop{
+  -webkit-user-select:none;user-select:none;
+}
+.lat-node:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
 html{scroll-behavior:smooth}
 @media (prefers-reduced-motion: reduce){
   html{scroll-behavior:auto}
