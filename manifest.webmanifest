@@ -1,0 +1,16 @@
+{
+  "name": "The Latticework — A Field Manual for Thinking",
+  "short_name": "Latticework",
+  "description": "Thirty-eight mental models across seven domains, with spaced-repetition drills, a connection lattice, and field protocols.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F7F4ED",
+  "theme_color": "#F7F4ED",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
