@@ -403,6 +403,8 @@ const MODELS = [
 ];
 
 const byId = {}; MODELS.forEach(m => byId[m.id] = m);
+const ensoSvg = (d, cls="") =>
+  `<svg class="enso ${cls}" aria-hidden="true"${cls.includes("dom")?` style="color:${DOMAINS[d].color}"`:""}><use href="#e-dom-${d}"/></svg>`;
 
 /* ================= STORAGE (localStorage with in-memory fallback) ================= */
 const memStore = {};
@@ -455,6 +457,7 @@ function renderModels(){
       `<button class="mlink" data-goto="${l}">${byId[l].code} · ${byId[l].short}</button>`).join("");
     card.innerHTML = `
       <button class="mcard-head" aria-expanded="false">
+        ${ensoSvg(m.d, "enso-dom")}
         <span class="mcode" style="color:${DOMAINS[m.d].color}">${m.code}</span>
         <span class="mname">${m.name}<span class="messence">${m.essence}</span></span>
         <span class="mtoggle">+</span>
@@ -597,7 +600,7 @@ function selectNode(id){
     return `<p style="margin-top:8px">→ <b style="color:${DOMAINS[byId[l].d].color}">${byId[l].name}</b> — <span>${threadNote(id,l)}</span></p>`;
   }).join("");
   latDetail.innerHTML = `
-    <div class="ld-name" style="color:${DOMAINS[m.d].color}">${m.code} · ${m.name}</div>
+    <div class="ld-name" style="color:${DOMAINS[m.d].color}">${ensoSvg(m.d, "enso-inline")}${m.code} · ${m.name}</div>
     <p>${m.essence} ${m.mech.split(". ")[0]}.</p>
     <div style="margin-top:10px"><span class="chip">Threads</span></div>
     ${threads}
@@ -732,7 +735,7 @@ function nextCard(){
   current = queue.shift();
   const m = byId[current];
   drillCount.textContent = `${deckLabel} · ${queue.length+1} remaining`;
-  drillDomain.textContent = m.code;
+  drillDomain.innerHTML = ensoSvg(m.d, "enso-inline") + m.code;
   drillDomain.style.color = DOMAINS[m.d].color;
   drillQ.textContent = m.drill.q;
   drillA.innerHTML = m.drill.a + `<br><br><em style="color:var(--chalk-faint)">Hook: ${m.hook}</em>`;

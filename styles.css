@@ -172,6 +172,19 @@ nav.tabs{
   box-shadow:inset 0 1px 0 rgba(255,255,255,.22), 0 4px 12px -4px rgba(33,30,25,.35);
 }
 
+/* ---------- enso glyphs ---------- */
+.enso{width:32px;height:32px;flex-shrink:0;color:var(--accent)}
+h2.sec .enso{display:inline-block;width:30px;height:30px;margin-right:12px;vertical-align:-4px}
+.card-enso{display:block;width:30px;height:30px;margin-bottom:12px}
+.mcard-head .enso-dom{width:24px;height:24px;align-self:center}
+.enso-inline{display:inline-block;width:20px;height:20px;vertical-align:-5px;margin-right:8px}
+.drill-domain .enso-inline{display:block;width:26px;height:26px;margin:0 auto 6px}
+.mast-enso{
+  position:absolute;right:0;top:-6px;width:150px;height:150px;
+  color:var(--accent);opacity:.16;pointer-events:none;
+}
+@media(max-width:720px){.mast-enso{width:90px;height:90px;opacity:.12}}
+
 /* ---------- settings ---------- */
 .tabs-inner{padding-right:64px}
 .settings-btn{
