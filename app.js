@@ -896,7 +896,7 @@ const sitResults = document.getElementById("sitResults");
 
 function updateSitMode(){
   if(!sitMode) return;
-  sitMode.textContent = getApiKey() ? "Claude · Sonnet 5" : "offline match — add a key in settings for tailored analysis";
+  sitMode.textContent = getApiKey() ? "analyzed by Claude" : "offline match — add a key in settings for tailored analysis";
 }
 
 function renderHits(matches, offline, noteHtml){
