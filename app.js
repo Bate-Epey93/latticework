@@ -759,8 +759,10 @@ document.querySelectorAll(".grade-row .btn").forEach(b => b.addEventListener("cl
   const dueDays = g===0 ? 0 : (g===1 ? Math.max(0.5, INTERVALS[box-1]/2) : INTERVALS[box-1]);
   progress[current] = {box, due: Date.now() + dueDays*DAY};
   saveProgress(progress);
+  bumpReviews();
   if(g===0) queue.push(current); // failed cards return this session
   nextCard();
+  if(typeof onProgressChanged === "function") onProgressChanged();
 }));
 
 function renderProgress(){
@@ -963,6 +965,293 @@ if(sitGo){
   window.addEventListener("offline", updateSitMode);
   updateSitMode();
 }
+
+/* ================= DAILY PRACTICE ================= */
+(function(){
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  function ymd(ts){ const d = ts==null ? new Date() : new Date(ts); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function today(){ return ymd(); }
+  function daysBetween(a,b){ return Math.round((new Date(b+"T00:00") - new Date(a+"T00:00"))/DAY); }
+  const jget = (k,d) => { try{ const v = sGet(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } };
+  const jset = (k,v) => sSet(k, JSON.stringify(v));
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" class="step-check"><path d="M20 6 9 17l-5-5"/></svg>';
+  const glyph = ref => `<svg class="enso step-glyph" aria-hidden="true"><use href="#${ref}"/></svg>`;
+
+  /* ---- stats & streak ---- */
+  function stats(){ return jget("lattice_stats", {reviews:0}); }
+  window.bumpReviews = function(){ const s=stats(); s.reviews=(s.reviews||0)+1; jset("lattice_stats", s); };
+  function streak(){ return jget("lattice_streak", {count:0,last:null}); }
+  function dayComplete(){ return feynmanToday() && dueCards().length===0; }
+  function maybeAwardStreak(){
+    if(!dayComplete()) return;
+    const s = streak(), t = today();
+    if(s.last === t) return;
+    s.count = (s.last && daysBetween(s.last,t)===1) ? (s.count||0)+1 : 1;
+    s.last = t; jset("lattice_streak", s);
+  }
+
+  /* ---- feynman ---- */
+  const JARGON = ["heuristic","asymmetric","asymmetry","asymmetrically","probabilistic","stochastic","optimize","optimization","optimise","leverage","paradigm","synergy","orthogonal","monotonic","convex","nonlinear","exponential","exponentially","bottleneck","throughput","recursive","abstraction","instantiate","parameter","parameters","variance","posterior","prior","priors","bayesian","utility","equilibrium","incentive","incentives","dissonance","cognitive","salience","salient","normative","counterfactual","counterfactuals","epistemic","ontological","reification","marginal","subordinate","constraint","reference-class"];
+  const JSET = new Set(JARGON);
+  function feynLog(){ return jget("lattice_feynman", []); }
+  function feynmanToday(){ return feynLog().some(e => e.date === today()); }
+  function modelOfDay(){ return MODELS[Math.floor(Date.now()/DAY) % MODELS.length]; }
+  function randomOtherId(cur){ let id; do{ id = MODELS[Math.floor(Math.random()*MODELS.length)].id; }while(id===cur && MODELS.length>1); return id; }
+  function jargonWords(text){ const out=[]; (text.toLowerCase().match(/[a-z][a-z-]+/g)||[]).forEach(w=>{ if(JSET.has(w) && out.indexOf(w)<0) out.push(w); }); return out; }
+  function highlightJargon(text){ return esc(text).replace(/[A-Za-z][A-Za-z-]+/g, w => JSET.has(w.toLowerCase()) ? `<mark class="jargon">${w}</mark>` : w); }
+  function jargonNote(text){
+    const w = jargonWords(text); if(!w.length) return `<p class="feyn-clear">No jargon — that's the mark of real understanding.</p>`;
+    return `<p class="feyn-jargon">Plain-word check: ${w.map(x=>`<span class="jchip">${esc(x)}</span>`).join(" ")} — where you reached for a term, you found the edge of your understanding. Rewrite that spot.</p>`;
+  }
+  let feynId = modelOfDay().id, feynForce = false;
+
+  /* ---- journal ---- */
+  function journal(){ return jget("lattice_journal", []); }
+  function saveJournal(j){ jset("lattice_journal", j); }
+  function loggedThisWeek(){ const t=today(); return journal().some(e => daysBetween(e.date,t) <= 7); }
+  const RESOLVE_AGE = 14;
+  let jModels = new Set();
+
+  /* ================= TODAY ================= */
+  function renderStreak(){
+    const s = streak(), el = $("streakBadge"); if(!el) return;
+    const warm = s.last === today();
+    el.innerHTML = `<div class="streak-n">${s.count||0}</div><div class="streak-l">day${(s.count===1)?"":"s"}</div>`;
+    el.classList.toggle("cold", !warm);
+    el.title = warm ? "Today's loop is complete" : "Finish today's loop to keep the streak";
+  }
+  function drillStep(){
+    const due = dueCards().length;
+    if(due===0) return {done:true, html:`<div class="step done"><div class="step-mark">${CHECK}</div><div class="step-body"><div class="step-kicker">Drill · spaced repetition</div><h4>All caught up</h4><p class="step-note">Nothing due. The next cards return on their schedule.</p></div></div>`};
+    return {done:false, html:`<div class="step"><div class="step-mark">${glyph("e-drill")}</div><div class="step-body"><div class="step-kicker">Drill · spaced repetition</div><h4>${due} card${due===1?"":"s"} due</h4><p class="step-note">Retrieve each before revealing. Grade honestly.</p><div class="step-act"><button class="btn primary js-drill">Start drill</button></div></div></div>`};
+  }
+  function feynStep(){
+    const done = feynmanToday() && !feynForce;
+    let body;
+    if(done){
+      const e = feynLog().filter(x=>x.date===today()).slice(-1)[0];
+      body = `<p class="step-note">You explained <b>${esc(byId[e.id].name)}</b> today.</p><div class="feyn-text">${highlightJargon(e.text)}</div>${jargonNote(e.text)}<div class="step-act"><button class="mlink js-feyn-another">Write another &#8599;</button></div>`;
+    } else {
+      const m = byId[feynId];
+      body = `<p class="step-note">Explain <b>${esc(m.name)}</b> to a smart 12-year-old — no jargon.</p><textarea class="feyn-input" id="feynInput" rows="3" placeholder="In plain words…"></textarea><div class="step-act"><button class="btn primary js-feyn-save">Save explanation</button><button class="mlink js-feyn-skip">Different model</button></div>`;
+    }
+    return {done, html:`<div class="step ${done?"done":""}"><div class="step-mark">${done?CHECK:glyph("e-feyn")}</div><div class="step-body"><div class="step-kicker">Feynman · elaboration</div><h4>Explain one model</h4>${body}</div></div>`};
+  }
+  function applyStep(){
+    const done = loggedThisWeek();
+    const body = done
+      ? `<p class="step-note">You logged a decision this week. Score old predictions in the journal when they resolve.</p>`
+      : `<p class="step-note">Run one real decision through the models — the habit that compounds everything.</p><div class="step-act"><button class="btn primary js-open-journal">Open the journal</button></div>`;
+    return {done, html:`<div class="step weekly ${done?"done":""}"><div class="step-mark">${done?CHECK:glyph("e-journal")}</div><div class="step-body"><div class="step-kicker">Apply · once a week</div><h4>Run a real decision</h4>${body}</div></div>`};
+  }
+  function renderAgenda(){
+    const el = $("agenda"); if(!el) return;
+    const d = drillStep(), f = feynStep(), a = applyStep();
+    let footer = "";
+    if(d.done && f.done){
+      const s = streak();
+      footer = `<div class="today-done"><div class="step-mark">${CHECK}</div><div><b>You're done for today.</b> ${s.count>1?`${s.count} days running — `:""}See you tomorrow.</div></div>`;
+    }
+    el.innerHTML = d.html + f.html + a.html + footer;
+
+    const drillBtn = el.querySelector(".js-drill");
+    if(drillBtn) drillBtn.addEventListener("click", () => { document.querySelector('[data-tab=drill]').click(); startDeck("Due today", null); });
+    const save = el.querySelector(".js-feyn-save");
+    if(save) save.addEventListener("click", () => {
+      const t = ($("feynInput").value||"").trim();
+      if(t.length < 15){ $("feynInput").focus(); $("feynInput").classList.add("shake"); setTimeout(()=>$("feynInput").classList.remove("shake"),400); return; }
+      const log = feynLog(); log.push({date:today(), id:feynId, text:t}); jset("lattice_feynman", log);
+      feynForce = false; onProgressChanged();
+    });
+    const skip = el.querySelector(".js-feyn-skip");
+    if(skip) skip.addEventListener("click", () => { feynId = randomOtherId(feynId); renderAgenda(); });
+    const another = el.querySelector(".js-feyn-another");
+    if(another) another.addEventListener("click", () => { feynForce = true; feynId = randomOtherId(feynId); renderAgenda(); });
+    const oj = el.querySelector(".js-open-journal");
+    if(oj) oj.addEventListener("click", () => { document.querySelector('[data-tab=apply]').click(); setTimeout(()=>{ const jr=$("journalRoot"); if(jr) jr.scrollIntoView({behavior:"smooth",block:"start"}); },80); });
+  }
+
+  /* ================= PROGRESS PANEL ================= */
+  function renderProgPanel(){
+    const el = $("progPanel"); if(!el) return;
+    const s = streak(), st = stats();
+    const boxes = [0,0,0,0,0];
+    MODELS.forEach(m => boxes[cardState(m.id).box-1]++);
+    const mastered = boxes[4], learning = boxes[1]+boxes[2]+boxes[3], fresh = boxes[0], due = dueCards().length;
+    const tile = (n,l) => `<div class="ptile"><div class="ptile-n">${n}</div><div class="ptile-l">${l}</div></div>`;
+    const tiles = tile(s.count||0,"day streak") + tile(st.reviews||0,"reviews") + tile(due,"due now") + tile(mastered,"mastered");
+    const domains = Object.keys(DOMAINS).map(k=>{
+      const ms = MODELS.filter(m=>m.d===k);
+      const avg = ms.reduce((a,m)=>a+cardState(m.id).box,0)/ms.length;
+      const pct = Math.round((avg/5)*100);
+      return `<div class="dbar"><span class="dbar-l">${DOMAINS[k].name}</span><span class="dbar-track"><i style="width:${pct}%;background:${DOMAINS[k].color}"></i></span><span class="dbar-v">${avg.toFixed(1)}</span></div>`;
+    }).join("");
+    el.innerHTML = `<div class="ptiles">${tiles}</div>
+      <p class="prog-cap">${fresh} new · ${learning} taking root · ${mastered} mastered — the flat part of the curve is where most people quit.</p>
+      <div class="dbars"><div class="dbars-h">Maturity by domain <span>· average Leitner box, 1–5</span></div>${domains}</div>`;
+  }
+
+  /* ================= DECISION JOURNAL ================= */
+  function renderChips(){
+    const c = $("jChips"); if(!c) return;
+    c.innerHTML = [...jModels].map(id=>`<span class="jchip sel" data-rm="${id}" style="border-color:${DOMAINS[byId[id].d].color}">${esc(byId[id].short)} <b>&times;</b></span>`).join("");
+    c.querySelectorAll("[data-rm]").forEach(x=>x.addEventListener("click",()=>{ jModels.delete(x.dataset.rm); renderChips(); }));
+  }
+  function addModelByText(val){
+    const v = val.trim().toLowerCase(); if(!v) return;
+    const m = MODELS.find(m => (m.code+" · "+m.short).toLowerCase()===v || m.short.toLowerCase()===v || m.name.toLowerCase()===v)
+           || MODELS.find(m => m.short.toLowerCase().includes(v) || m.name.toLowerCase().includes(v));
+    if(m) jModels.add(m.id);
+    renderChips();
+  }
+  function calibHtml(){
+    const done = journal().filter(e => e.outcome && typeof e.outcome.correct === "boolean");
+    if(done.length < 3) return `<div class="jcalib muted">Score at least 3 resolved predictions to see your calibration.</div>`;
+    const buckets = [{lo:0,hi:59,lbl:"≤59%"},{lo:60,hi:74,lbl:"60–74%"},{lo:75,hi:89,lbl:"75–89%"},{lo:90,hi:100,lbl:"90%+"}];
+    const rows = buckets.map(bk=>{
+      const es = done.filter(e => e.prob>=bk.lo && e.prob<=bk.hi);
+      if(!es.length) return "";
+      const pred = Math.round(es.reduce((a,e)=>a+e.prob,0)/es.length);
+      const hit = es.filter(e=>e.outcome.correct).length;
+      const act = Math.round((hit/es.length)*100);
+      return `<div class="crow"><span class="crow-l">${bk.lbl}</span><span class="crow-bars"><span class="crow-pred" style="width:${pred}%" title="predicted ${pred}%"></span><span class="crow-act" style="width:${act}%" title="actual ${act}%"></span></span><span class="crow-v">${hit}/${es.length}</span></div>`;
+    }).join("");
+    const meanPred = done.reduce((a,e)=>a+e.prob,0)/done.length;
+    const meanAct = done.filter(e=>e.outcome.correct).length/done.length*100;
+    const gap = meanPred - meanAct;
+    const take = Math.abs(gap) < 8 ? "Well calibrated — your confidence tracks reality."
+      : gap > 0 ? `Overconfident by ~${Math.round(gap)} points on average — shade your probabilities down.`
+      : `Underconfident by ~${Math.round(-gap)} points — you're right more often than you claim.`;
+    return `<div class="jcalib"><div class="jcalib-h">Calibration <span>· <i class="k-pred"></i> predicted &nbsp; <i class="k-act"></i> actual</span></div>${rows}<p class="jcalib-take">${take}</p></div>`;
+  }
+  function entryHtml(e){
+    const age = daysBetween(e.date, today());
+    const resolved = e.outcome && typeof e.outcome.correct === "boolean";
+    const ready = !resolved && age >= RESOLVE_AGE;
+    const badge = resolved ? `<span class="jbadge ${e.outcome.correct?"ok":"no"}">${e.outcome.correct?"called it":"missed"}</span>` : (ready?`<span class="jbadge ready">ready to score</span>`:"");
+    const chips = (e.models||[]).filter(id=>byId[id]).map(id=>`<span class="jchip" style="border-color:${DOMAINS[byId[id].d].color}">${esc(byId[id].short)}</span>`).join(" ");
+    const resolve = resolved ? "" : `<div class="jresolve">Did it happen as you expected? <button class="jr-btn" data-res="1" data-id="${e.id}">Yes</button> <button class="jr-btn" data-res="0" data-id="${e.id}">No</button></div>`;
+    return `<div class="jentry ${resolved?"resolved":""} ${ready?"ready":""}">
+      <div class="jentry-top"><span class="jentry-date">${e.date}</span><span class="jentry-prob">${e.prob}%</span>${badge}<button class="jentry-del" data-del="${e.id}" title="Remove">&times;</button></div>
+      <p class="jentry-dec">${esc(e.decision)}</p>
+      ${e.expect?`<p class="jentry-exp">Expected: ${esc(e.expect)}</p>`:""}
+      ${chips?`<div class="jentry-models">${chips}</div>`:""}
+      ${resolve}
+    </div>`;
+  }
+  function renderJournal(){
+    const root = $("journalRoot"); if(!root) return;
+    if(!root.dataset.built){
+      root.dataset.built = "1";
+      root.innerHTML = `<div class="jrnl">
+        <div class="jrnl-form">
+          <svg class="enso card-enso" aria-hidden="true"><use href="#e-journal"/></svg>
+          <h4>Decision journal</h4>
+          <p class="jrnl-sub">Log a real decision and your prediction. Score it when it resolves — the app's only feedback loop with reality.</p>
+          <textarea id="jDecision" rows="2" placeholder="The decision or problem…"></textarea>
+          <input id="jExpect" placeholder="What I expect to happen…">
+          <label class="jrnl-prob">Probability I'm right <b id="jProbV">70%</b><input type="range" id="jProb" min="5" max="95" step="5" value="70"></label>
+          <div class="jrnl-models">
+            <input id="jModelInput" list="jModelList" placeholder="Models you used — type a name, press enter">
+            <datalist id="jModelList"></datalist>
+            <div class="jrnl-chips" id="jChips"></div>
+          </div>
+          <button class="btn primary" id="jSave">Log decision</button>
+        </div>
+        <div id="jCalib"></div>
+        <div id="jList"></div>
+      </div>`;
+      $("jModelList").innerHTML = MODELS.map(m=>`<option value="${esc(m.code+" · "+m.short)}">`).join("");
+      $("jProb").addEventListener("input", () => $("jProbV").textContent = $("jProb").value + "%");
+      const mi = $("jModelInput");
+      mi.addEventListener("change", () => { addModelByText(mi.value); mi.value=""; });
+      mi.addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); addModelByText(mi.value); mi.value=""; } });
+      $("jSave").addEventListener("click", () => {
+        const dec = ($("jDecision").value||"").trim();
+        if(dec.length < 6){ $("jDecision").focus(); return; }
+        const j = journal();
+        j.push({ id:"j"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date:today(), decision:dec, expect:($("jExpect").value||"").trim(), prob:+$("jProb").value, models:[...jModels], outcome:null });
+        saveJournal(j);
+        $("jDecision").value=""; $("jExpect").value=""; $("jProb").value=70; $("jProbV").textContent="70%"; jModels = new Set(); renderChips();
+        renderJournalBody(); onProgressChanged();
+      });
+      const list = $("jList");
+      list.addEventListener("click", e => {
+        const res = e.target.closest(".jr-btn");
+        if(res){ const j=journal(); const it=j.find(x=>x.id===res.dataset.id); if(it){ it.outcome={correct:res.dataset.res==="1", date:today()}; saveJournal(j); renderJournalBody(); } return; }
+        const del = e.target.closest(".jentry-del");
+        if(del){ saveJournal(journal().filter(x=>x.id!==del.dataset.del)); renderJournalBody(); onProgressChanged(); }
+      });
+    }
+    renderChips();
+    renderJournalBody();
+  }
+  function renderJournalBody(){
+    const cal = $("jCalib"), list = $("jList"); if(!cal||!list) return;
+    cal.innerHTML = calibHtml();
+    const items = journal().slice().sort((a,b)=> (a.date<b.date?1:-1));
+    list.innerHTML = items.length
+      ? `<div class="jlist-h">${items.length} logged</div>` + items.map(entryHtml).join("")
+      : `<div class="jempty">No entries yet. Your first logged decision is the start of your calibration record.</div>`;
+  }
+
+  /* ================= BACKUP ================= */
+  function lkeys(){ const out=[]; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.indexOf("lattice_")===0) out.push(k); } }catch(e){} for(const k in memStore){ if(k.indexOf("lattice_")===0 && out.indexOf(k)<0) out.push(k); } return out; }
+  function doExport(){
+    const data = {}; lkeys().forEach(k => { if(k!=="lattice_apikey") data[k] = sGet(k); });
+    const blob = new Blob([JSON.stringify({app:"latticework", exported:today(), data}, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "latticework-backup-"+today()+".json";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  }
+  function doImport(file){
+    const r = new FileReader();
+    r.onload = () => {
+      try{
+        const parsed = JSON.parse(r.result);
+        const data = parsed.data || parsed;
+        if(!data || typeof data !== "object") throw 0;
+        if(!confirm("Restore this backup? It overwrites the drills, journal, and Feynman notes on this device.")) return;
+        Object.keys(data).forEach(k => { if(k.indexOf("lattice_")===0 && k!=="lattice_apikey") sSet(k, data[k]); });
+        location.reload();
+      }catch(e){ alert("That doesn't look like a Latticework backup file."); }
+    };
+    r.readAsText(file);
+  }
+
+  /* ================= BADGE ================= */
+  function badgePref(){ return sGet("lattice_badge")==="on"; }
+  function updateBadge(){
+    if(!("setAppBadge" in navigator)) return;
+    if(!badgePref()){ if(navigator.clearAppBadge) navigator.clearAppBadge(); return; }
+    const n = dueCards().length;
+    if(n>0) navigator.setAppBadge(n).catch(()=>{}); else if(navigator.clearAppBadge) navigator.clearAppBadge().catch(()=>{});
+  }
+
+  /* ================= WIRING ================= */
+  window.onProgressChanged = function(){ maybeAwardStreak(); renderStreak(); renderAgenda(); renderProgPanel(); renderJournalBody(); updateBadge(); };
+
+  const badgeToggle = $("badgeToggle");
+  if(badgeToggle){
+    if(!("setAppBadge" in navigator)){ badgeToggle.disabled = true; badgeToggle.closest(".sp-toggle").classList.add("unsupported"); }
+    badgeToggle.checked = badgePref();
+    badgeToggle.addEventListener("change", async () => {
+      if(badgeToggle.checked){
+        try{ if("Notification" in window && Notification.permission==="default") await Notification.requestPermission(); }catch(e){}
+        sSet("lattice_badge","on");
+      } else sSet("lattice_badge","off");
+      updateBadge();
+    });
+  }
+  const exportBtn = $("exportBtn"), importBtn = $("importBtn"), importFile = $("importFile");
+  if(exportBtn) exportBtn.addEventListener("click", doExport);
+  if(importBtn && importFile){ importBtn.addEventListener("click", () => importFile.click()); importFile.addEventListener("change", () => { if(importFile.files[0]) doImport(importFile.files[0]); importFile.value=""; }); }
+  document.addEventListener("visibilitychange", () => { if(!document.hidden){ updateBadge(); renderStreak(); renderAgenda(); } });
+
+  maybeAwardStreak();
+  renderStreak(); renderAgenda(); renderProgPanel(); renderJournal(); updateBadge();
+})();
 
 /* ================= PWA ================= */
 if ("serviceWorker" in navigator) {
