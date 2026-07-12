@@ -798,6 +798,172 @@ document.addEventListener("click", e => {
 });
 applyTheme();
 
+/* ================= API KEY ================= */
+const apiKeyInput = document.getElementById("apiKeyInput");
+if (apiKeyInput) {
+  apiKeyInput.value = sGet("lattice_apikey") || "";
+  apiKeyInput.addEventListener("input", () => { sSet("lattice_apikey", apiKeyInput.value.trim()); if (typeof updateSitMode === "function") updateSitMode(); });
+}
+function getApiKey(){ return (sGet("lattice_apikey") || "").trim(); }
+
+/* ================= SITUATION -> MODELS ================= */
+/* ---- offline fallback: compact BM25 over the model corpus ---- */
+const STOP = new Set("the a an and or but of to in on for with at by from as is are was be it this that these those you your i we they he she them his her its their our my me not no do does did so if then than into about over under out up down off can will would should could may might must have has had he's".split(" "));
+function tok(str){
+  return (str.toLowerCase().match(/[a-z0-9]+/g) || [])
+    .filter(w => w.length > 2 && !STOP.has(w))
+    .map(w => w.replace(/(ing|ed|es|s)$/,"") || w);
+}
+const bm25 = (() => {
+  const docs = MODELS.map(m => tok([m.name, m.short, m.essence, m.mech, m.ex].join(" ")));
+  const N = docs.length, df = {};
+  docs.forEach(d => new Set(d).forEach(t => df[t] = (df[t]||0)+1));
+  const avgdl = docs.reduce((a,d)=>a+d.length,0) / N;
+  const k1 = 1.5, b = 0.75;
+  return function(query){
+    const q = tok(query); if(!q.length) return [];
+    return MODELS.map((m,i) => {
+      const d = docs[i], tf = {};
+      d.forEach(t => tf[t] = (tf[t]||0)+1);
+      let s = 0;
+      new Set(q).forEach(t => {
+        if(!tf[t]) return;
+        const idf = Math.log(1 + (N - df[t] + 0.5)/(df[t] + 0.5));
+        s += idf * (tf[t]*(k1+1)) / (tf[t] + k1*(1 - b + b*d.length/avgdl));
+      });
+      return {id:m.id, score:s};
+    }).filter(r => r.score > 0).sort((a,b) => b.score - a.score).slice(0,5);
+  };
+})();
+
+/* ---- LLM matcher: user's own Claude key, direct browser call ---- */
+const PROTOCOLS = ["The 5-minute decision triage","Expected value worksheet","Bayes in 60 seconds","Pre-mortem script","10/10/10 + regret minimization","The weekly decision journal"];
+const MODEL_IDS = MODELS.map(m => m.id);
+const CATALOG = MODELS.map(m => `${m.id} | ${m.name} (${DOMAINS[m.d].name}): ${m.essence}`).join("\n");
+const SIT_SCHEMA = {
+  type:"object", additionalProperties:false, required:["matches"],
+  properties:{ matches:{ type:"array", items:{
+    type:"object", additionalProperties:false, required:["id","why"],
+    properties:{
+      id:{ type:"string", enum: MODEL_IDS },
+      why:{ type:"string" },
+      protocol:{ type:"string", enum: PROTOCOLS }
+    }
+  }}}
+};
+async function llmMatch(situation, key){
+  const system =
+    "You match a person's real situation to the mental models most worth thinking with. " +
+    "Choose the 3-5 MOST relevant models from the catalog below (fewer if only a few truly fit), ordered most relevant first. " +
+    "For each, write `why` as ONE concrete sentence naming how that model bears on THIS specific situation — not a generic definition. " +
+    "Optionally set `protocol` to the single most useful field protocol. Only pick ids from the catalog.\n\nCATALOG (id | name (domain): essence):\n" + CATALOG;
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{
+      "content-type":"application/json",
+      "x-api-key": key,
+      "anthropic-version":"2023-06-01",
+      "anthropic-dangerous-direct-browser-access":"true"
+    },
+    body: JSON.stringify({
+      model:"claude-sonnet-5",
+      max_tokens:1500,
+      thinking:{type:"disabled"},
+      system,
+      messages:[{role:"user", content: situation}],
+      output_config:{ format:{ type:"json_schema", schema: SIT_SCHEMA } }
+    })
+  });
+  if(!res.ok){
+    let msg = "HTTP " + res.status;
+    try{ const e = await res.json(); msg = (e.error && e.error.message) || msg; }catch(_){}
+    const err = new Error(msg); err.status = res.status; throw err;
+  }
+  const data = await res.json();
+  if(data.stop_reason === "refusal") throw Object.assign(new Error("refusal"), {refusal:true});
+  const textBlock = (data.content || []).find(b => b.type === "text");
+  const parsed = JSON.parse(textBlock.text);
+  return (parsed.matches || []).filter(m => byId[m.id]);
+}
+
+/* ---- UI ---- */
+const sitInput = document.getElementById("sitInput");
+const sitGo = document.getElementById("sitGo");
+const sitMode = document.getElementById("sitMode");
+const sitResults = document.getElementById("sitResults");
+
+function updateSitMode(){
+  if(!sitMode) return;
+  sitMode.textContent = getApiKey() ? "Claude · Sonnet 5" : "offline match — add a key in settings for tailored analysis";
+}
+
+function renderHits(matches, offline, noteHtml){
+  if(!matches.length){
+    sitResults.innerHTML = noteHtml || `<div class="sit-note">No clear match. Try describing the situation more concretely — what's happening, what you're deciding, what you're worried about.</div>`;
+    return;
+  }
+  const head = noteHtml || (offline
+    ? `<div class="sit-note"><b>Offline keyword match.</b> These share language with your situation. For reasoning about <em>your</em> specific case, add your Claude API key in <button class="sit-openset">settings</button>.</div>`
+    : "");
+  sitResults.innerHTML = head + matches.map(mm => {
+    const m = byId[mm.id];
+    const why = (offline || !mm.why) ? m.essence : mm.why;
+    const proto = (!offline && mm.protocol) ? `<p class="sit-proto">Field protocol: <b>${mm.protocol}</b> — see the Apply tab.</p>` : "";
+    return `<div class="sit-hit">
+      <button class="sit-hit-head" data-goto="${m.id}">
+        ${ensoSvg(m.d, "enso-dom")}
+        <span class="mcode" style="color:${DOMAINS[m.d].color}">${m.code}</span>
+        <span class="mname">${m.name}</span>
+      </button>
+      <p class="sit-why">${why}</p>
+      ${proto}
+      <div class="sit-links">
+        <button class="mlink" data-goto="${m.id}">Open card &#8599;</button>
+        <button class="mlink" data-lattice="${m.id}">See in lattice &#8599;</button>
+      </div>
+    </div>`;
+  }).join("");
+  sitResults.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => {
+    document.querySelector('[data-tab=models]').click();
+    setTimeout(() => gotoModel(b.dataset.goto), 80);
+  }));
+  sitResults.querySelectorAll("[data-lattice]").forEach(b => b.addEventListener("click", () => {
+    document.querySelector('[data-tab=lattice]').click();
+    setTimeout(() => { selectNode(b.dataset.lattice); nodeEls[b.dataset.lattice].scrollIntoView({behavior:"smooth",block:"center"}); }, 80);
+  }));
+  const open = sitResults.querySelector(".sit-openset");
+  if(open) open.addEventListener("click", () => { settingsPop.classList.add("open"); apiKeyInput && apiKeyInput.focus(); });
+}
+
+async function runSituation(){
+  const text = (sitInput.value || "").trim();
+  if(text.length < 8){ sitResults.innerHTML = `<div class="sit-note">Give me a sentence or two about the situation.</div>`; return; }
+  const key = getApiKey();
+  if(key && navigator.onLine){
+    sitResults.innerHTML = `<div class="sit-spinner"><i></i>Analyzing your situation with Claude…</div>`;
+    sitGo.disabled = true;
+    try{
+      renderHits(await llmMatch(text, key), false);
+    }catch(err){
+      const why = err.refusal ? "Claude declined to analyze this one."
+        : err.status === 401 ? "That API key was rejected — check it in settings."
+        : "Couldn't reach Claude (" + (err.message||"error") + ").";
+      const note = `<div class="sit-note">${why} Showing an offline keyword match instead — open <button class="sit-openset">settings</button> to fix the key.</div>`;
+      renderHits(bm25(text), true, note);
+    }finally{ sitGo.disabled = false; }
+  } else {
+    renderHits(bm25(text), true);
+  }
+}
+
+if(sitGo){
+  sitGo.addEventListener("click", runSituation);
+  sitInput.addEventListener("keydown", e => { if((e.metaKey||e.ctrlKey) && e.key === "Enter") runSituation(); });
+  window.addEventListener("online", updateSitMode);
+  window.addEventListener("offline", updateSitMode);
+  updateSitMode();
+}
+
 /* ================= PWA ================= */
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
