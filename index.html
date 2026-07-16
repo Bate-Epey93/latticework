@@ -157,6 +157,12 @@
 <section class="panel" id="panel-lattice">
   <h2 class="sec"><svg class="enso " aria-hidden="true"><use href="#e-lattice"/></svg>The lattice</h2>
   <p class="sec-lede">Every model as a node; every conceptual thread drawn. Click a node to light up its connections and read why they touch. In week six, your job is to reproduce this map from memory.</p>
+  <div class="lat-tools">
+    <button class="btn" id="blankBtn">Blank-page test</button>
+    <button class="btn primary" id="latScoreBtn" style="display:none">Score</button>
+    <button class="btn" id="latExitBtn" style="display:none">Exit test</button>
+    <span class="lat-test-status" id="latTestStatus"></span>
+  </div>
   <div class="lattice-wrap">
     <div class="lat-legend" id="latLegend"></div>
     <svg id="latticeSvg" viewBox="0 0 1280 1280" role="img" aria-label="Connection map of all mental models"></svg>

@@ -544,15 +544,18 @@ MODELS.forEach(m => m.links.forEach(l => {
   if(!edgeSet.has(key) && byId[l]){ edgeSet.add(key); edges.push([m.id,l]); }
 }));
 
-const edgeEls = {};
-edges.forEach(([a,b]) => {
+function chordPath(a,b){
   const p1 = positions[a], p2 = positions[b];
   // control points pulled toward the centre — closer chords bow less
   const pull = 0.72;
   const c1x = p1.x + (CX-p1.x)*pull, c1y = p1.y + (CY-p1.y)*pull;
   const c2x = p2.x + (CX-p2.x)*pull, c2y = p2.y + (CY-p2.y)*pull;
+  return `M ${p1.x} ${p1.y} C ${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`;
+}
+const edgeEls = {};
+edges.forEach(([a,b]) => {
   const ln = document.createElementNS(SVGNS,"path");
-  ln.setAttribute("d", `M ${p1.x} ${p1.y} C ${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`);
+  ln.setAttribute("d", chordPath(a,b));
   ln.setAttribute("class","lat-edge");
   svg.appendChild(ln);
   (edgeEls[a]=edgeEls[a]||[]).push(ln);
@@ -582,7 +585,7 @@ MODELS.forEach(m => {
   t.setAttribute("transform", `rotate(${leftSide ? deg+180 : deg} ${lx} ${ly})`);
   t.textContent = m.short;
   g.appendChild(c); g.appendChild(t);
-  const select = () => selectNode(m.id);
+  const select = () => (latTest ? testTap(m.id) : selectNode(m.id));
   g.addEventListener("click",select);
   g.addEventListener("keydown",e => { if(e.key==="Enter"||e.key===" "){e.preventDefault();select();} });
   svg.appendChild(g);
@@ -669,6 +672,113 @@ function threadNote(a,b){
   return notes[pair] || "conceptually adjacent — articulate the link yourself; that articulation is the learning";
 }
 
+/* ================= BLANK-PAGE TEST ================= */
+const latticeWrap = document.querySelector(".lattice-wrap");
+const blankBtn = document.getElementById("blankBtn");
+const latScoreBtn = document.getElementById("latScoreBtn");
+const latExitBtn = document.getElementById("latExitBtn");
+const latTestStatus = document.getElementById("latTestStatus");
+let latTest = null; // {first, guesses:Map(key->path), marks:[]}
+
+function edgeKey(a,b){ return [a,b].sort().join("|"); }
+
+function testTap(id){
+  if(!latTest) return;
+  if(latTest.first === null){ latTest.first = id; nodeEls[id].classList.add("sel"); return; }
+  if(latTest.first === id){ latTest.first = null; nodeEls[id].classList.remove("sel"); return; }
+  const key = edgeKey(latTest.first, id);
+  nodeEls[latTest.first].classList.remove("sel");
+  latTest.first = null;
+  if(latTest.guesses.has(key)){
+    latTest.guesses.get(key).remove();
+    latTest.guesses.delete(key);
+  } else {
+    const [a,b] = key.split("|");
+    const p = document.createElementNS(SVGNS,"path");
+    p.setAttribute("d", chordPath(a,b));
+    p.setAttribute("class","lat-guess");
+    svg.appendChild(p);
+    latTest.guesses.set(key, p);
+  }
+  latTestStatus.textContent = `${latTest.guesses.size} thread${latTest.guesses.size===1?"":"s"} drawn · ${edges.length} exist`;
+}
+
+function enterBlankTest(){
+  latTest = {first:null, guesses:new Map(), marks:[]};
+  latticeWrap.classList.add("testing");
+  document.querySelectorAll(".lat-edge").forEach(e=>e.classList.remove("hot"));
+  Object.values(nodeEls).forEach(n=>n.classList.remove("sel"));
+  blankBtn.style.display = "none";
+  latScoreBtn.style.display = latExitBtn.style.display = "inline-block";
+  latTestStatus.textContent = `0 threads drawn · ${edges.length} exist`;
+  latDetail.innerHTML = `<p class="empty">Blank page. Tap two nodes to draw a thread between them — tap the same pair again to erase. Draw every connection you remember, then score.</p>`;
+}
+
+function scoreBlankTest(){
+  if(!latTest) return;
+  const real = new Set(edges.map(([a,b]) => edgeKey(a,b)));
+  let hits = 0; const invented = [], missed = [];
+  latTest.guesses.forEach((path,key) => {
+    if(real.has(key)){ hits++; path.classList.add("hit"); }
+    else { invented.push(key); path.classList.add("bad"); }
+  });
+  real.forEach(key => {
+    if(!latTest.guesses.has(key)){
+      missed.push(key);
+      const [a,b] = key.split("|");
+      const p = document.createElementNS(SVGNS,"path");
+      p.setAttribute("d", chordPath(a,b));
+      p.setAttribute("class","lat-missed");
+      svg.appendChild(p);
+      latTest.marks.push(p);
+    }
+  });
+  latScoreBtn.style.display = "none";
+  latTestStatus.textContent = `${hits}/${edges.length} found · ${invented.length} invented`;
+  try{
+    const st = JSON.parse(sGet("lattice_stats")||"{}");
+    st.blankpage = {date: new Date().toISOString().slice(0,10), found: hits, total: edges.length, invented: invented.length};
+    sSet("lattice_stats", JSON.stringify(st));
+  }catch(e){}
+  const missedHtml = missed.slice(0,60).map(key => {
+    const [a,b] = key.split("|");
+    return `<p style="margin-top:8px">→ <b style="color:${DOMAINS[byId[a].d].color}">${byId[a].short}</b> × <b style="color:${DOMAINS[byId[b].d].color}">${byId[b].short}</b> — <span>${threadNote(a,b)}</span></p>`;
+  }).join("");
+  latDetail.innerHTML = `
+    <div class="ld-name">${hits} of ${edges.length} threads from memory${invented.length?` · ${invented.length} invented`:""}</div>
+    ${missed.length ? `<div style="margin-top:10px"><span class="chip">Missed — your review list</span></div>${missedHtml}
+    <p style="margin-top:14px"><button class="btn primary" id="missedToDrill">Send ${missed.length} missed to drill</button></p>` : `<p>Perfect reproduction. The lattice is yours.</p>`}`;
+  const mtd = document.getElementById("missedToDrill");
+  if(mtd) mtd.addEventListener("click", () => {
+    missed.forEach(key => { progress["t:"+key] = {box:1, due:0}; });
+    saveProgress(progress);
+    mtd.textContent = "Sent — they'll appear in today's drill";
+    mtd.disabled = true;
+    if(typeof onProgressChanged === "function") onProgressChanged();
+    if(typeof buildDeckButtons === "function") buildDeckButtons();
+    if(typeof renderProgress === "function") renderProgress();
+  });
+}
+
+function exitBlankTest(){
+  if(!latTest) return;
+  latTest.guesses.forEach(p=>p.remove());
+  latTest.marks.forEach(p=>p.remove());
+  if(latTest.first) nodeEls[latTest.first].classList.remove("sel");
+  latTest = null;
+  latticeWrap.classList.remove("testing");
+  blankBtn.style.display = "inline-block";
+  latScoreBtn.style.display = latExitBtn.style.display = "none";
+  latTestStatus.textContent = "";
+  selectNode("fp");
+}
+
+if(blankBtn){
+  blankBtn.addEventListener("click", enterBlankTest);
+  latScoreBtn.addEventListener("click", scoreBlankTest);
+  latExitBtn.addEventListener("click", exitBlankTest);
+}
+
 /* ================= DRILL (Leitner) ================= */
 const INTERVALS = [0,1,3,7,21]; // days per box 1..5
 const DAY = 86400000;
@@ -687,9 +797,17 @@ const drillProgress = document.getElementById("drillProgress");
 function cardState(id){
   return progress[id] || {box:1, due:0}; // new cards: box1, due immediately
 }
+// thread cards: key "t:a|b"; unlock once both endpoint models leave box 1
+const THREAD_KEYS = edges.map(([a,b]) => "t:" + edgeKey(a,b));
+function threadUnlocked(key){
+  const [a,b] = key.slice(2).split("|");
+  return cardState(a).box >= 2 && cardState(b).box >= 2;
+}
+function unlockedThreads(){ return THREAD_KEYS.filter(threadUnlocked); }
 function dueCards(){
   const now = Date.now();
-  return MODELS.filter(m => cardState(m.id).due <= now).map(m=>m.id);
+  return MODELS.filter(m => cardState(m.id).due <= now).map(m=>m.id)
+    .concat(unlockedThreads().filter(k => cardState(k).due <= now));
 }
 function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
 
@@ -708,6 +826,8 @@ function buildDeckButtons(){
     mkBtn(d.name, MODELS.filter(m=>m.d===k).map(m=>m.id), false);
   });
   mkBtn("Everything", MODELS.map(m=>m.id), false);
+  const ut = unlockedThreads();
+  mkBtn(`Threads (${ut.length}/${THREAD_KEYS.length})`, ut, false);
 }
 
 function startDeck(label, ids){
@@ -733,12 +853,21 @@ function nextCard(){
     return;
   }
   current = queue.shift();
-  const m = byId[current];
   drillCount.textContent = `${deckLabel} · ${queue.length+1} remaining`;
-  drillDomain.innerHTML = ensoSvg(m.d, "enso-inline") + m.code;
-  drillDomain.style.color = DOMAINS[m.d].color;
-  drillQ.textContent = m.drill.q;
-  drillA.innerHTML = m.drill.a + `<br><br><em style="color:var(--chalk-faint)">Hook: ${m.hook}</em>`;
+  if(current.startsWith("t:")){
+    const [a,b] = current.slice(2).split("|");
+    const A = byId[a], B = byId[b];
+    drillDomain.innerHTML = `<svg class="enso enso-inline" style="color:${DOMAINS[A.d].color}"><use href="#e-dom-${A.d}"/></svg>${A.code} <span style="color:var(--chalk-faint)">×</span> <svg class="enso enso-inline" style="color:${DOMAINS[B.d].color}"><use href="#e-dom-${B.d}"/></svg>${B.code}`;
+    drillDomain.style.color = "var(--chalk-faint)";
+    drillQ.textContent = `Why do ${A.name} and ${B.name} touch?`;
+    drillA.innerHTML = `<b>${threadNote(a,b)}</b><br><br><em style="color:var(--chalk-faint)">${A.short}: ${A.essence}<br>${B.short}: ${B.essence}</em>`;
+  } else {
+    const m = byId[current];
+    drillDomain.innerHTML = ensoSvg(m.d, "enso-inline") + m.code;
+    drillDomain.style.color = DOMAINS[m.d].color;
+    drillQ.textContent = m.drill.q;
+    drillA.innerHTML = m.drill.a + `<br><br><em style="color:var(--chalk-faint)">Hook: ${m.hook}</em>`;
+  }
   revealBtn.style.display = "inline-block";
 }
 
@@ -768,6 +897,7 @@ document.querySelectorAll(".grade-row .btn").forEach(b => b.addEventListener("cl
 function renderProgress(){
   const counts = [0,0,0,0,0];
   MODELS.forEach(m => counts[cardState(m.id).box - 1]++);
+  unlockedThreads().forEach(k => counts[cardState(k).box - 1]++);
   const due = dueCards().length;
   drillProgress.innerHTML =
     `<div class="pbox"><div class="n">${due}</div><div class="l">Due now</div></div>` +
@@ -924,7 +1054,7 @@ function renderHits(matches, offline, noteHtml){
         <button class="mlink" data-lattice="${m.id}">See in lattice &#8599;</button>
       </div>
     </div>`;
-  }).join("");
+  }).join("") + `<div class="sit-note">Facing a decision here? <button class="sit-log">Log it in the journal with these models</button> — score it when it resolves.</div>`;
   sitResults.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => {
     document.querySelector('[data-tab=models]').click();
     setTimeout(() => gotoModel(b.dataset.goto), 80);
@@ -935,6 +1065,11 @@ function renderHits(matches, offline, noteHtml){
   }));
   const open = sitResults.querySelector(".sit-openset");
   if(open) open.addEventListener("click", () => { settingsPop.classList.add("open"); apiKeyInput && apiKeyInput.focus(); });
+  const logBtn = sitResults.querySelector(".sit-log");
+  if(logBtn) logBtn.addEventListener("click", () => {
+    if(typeof prefillJournal === "function")
+      prefillJournal({ decision: (sitInput.value||"").trim(), models: matches.map(mm => mm.id) });
+  });
 }
 
 async function runSituation(){
@@ -1022,9 +1157,10 @@ if(sitGo){
     el.title = warm ? "Today's loop is complete" : "Finish today's loop to keep the streak";
   }
   function drillStep(){
-    const due = dueCards().length;
+    const dueList = dueCards();
+    const due = dueList.length, tN = dueList.filter(k=>k.startsWith("t:")).length;
     if(due===0) return {done:true, html:`<div class="step done"><div class="step-mark">${CHECK}</div><div class="step-body"><div class="step-kicker">Drill · spaced repetition</div><h4>All caught up</h4><p class="step-note">Nothing due. The next cards return on their schedule.</p></div></div>`};
-    return {done:false, html:`<div class="step"><div class="step-mark">${glyph("e-drill")}</div><div class="step-body"><div class="step-kicker">Drill · spaced repetition</div><h4>${due} card${due===1?"":"s"} due</h4><p class="step-note">Retrieve each before revealing. Grade honestly.</p><div class="step-act"><button class="btn primary js-drill">Start drill</button></div></div></div>`};
+    return {done:false, html:`<div class="step"><div class="step-mark">${glyph("e-drill")}</div><div class="step-body"><div class="step-kicker">Drill · spaced repetition</div><h4>${due} card${due===1?"":"s"} due${tN?` · ${tN} thread${tN===1?"":"s"}`:""}</h4><p class="step-note">Retrieve each before revealing. Grade honestly.</p><div class="step-act"><button class="btn primary js-drill">Start drill</button></div></div></div>`};
   }
   function feynStep(){
     const done = feynmanToday() && !feynForce;
@@ -1087,8 +1223,11 @@ if(sitGo){
       const pct = Math.round((avg/5)*100);
       return `<div class="dbar"><span class="dbar-l">${DOMAINS[k].name}</span><span class="dbar-track"><i style="width:${pct}%;background:${DOMAINS[k].color}"></i></span><span class="dbar-v">${avg.toFixed(1)}</span></div>`;
     }).join("");
+    const ut = unlockedThreads().length;
+    const bp = st.blankpage;
+    const bpTxt = bp ? ` Last blank-page test: <b>${bp.found}/${bp.total}</b> threads from memory (${bp.date}).` : "";
     el.innerHTML = `<div class="ptiles">${tiles}</div>
-      <p class="prog-cap">${fresh} new · ${learning} taking root · ${mastered} mastered — the flat part of the curve is where most people quit.</p>
+      <p class="prog-cap">${fresh} new · ${learning} taking root · ${mastered} mastered — the flat part of the curve is where most people quit. ${ut}/${THREAD_KEYS.length} threads unlocked.${bpTxt}</p>
       <div class="dbars"><div class="dbars-h">Maturity by domain <span>· average Leitner box, 1–5</span></div>${domains}</div>`;
   }
 
@@ -1231,6 +1370,14 @@ if(sitGo){
 
   /* ================= WIRING ================= */
   window.onProgressChanged = function(){ maybeAwardStreak(); renderStreak(); renderAgenda(); renderProgPanel(); renderJournalBody(); updateBadge(); };
+  window.prefillJournal = function(opts){
+    jModels = new Set((opts.models||[]).filter(id => byId[id]));
+    renderChips();
+    const d = $("jDecision");
+    if(d && opts.decision) d.value = opts.decision;
+    document.querySelector('[data-tab=apply]').click();
+    setTimeout(() => { const jr = $("journalRoot"); if(jr) jr.scrollIntoView({behavior:"smooth", block:"start"}); if(d) d.focus(); }, 80);
+  };
 
   const badgeToggle = $("badgeToggle");
   if(badgeToggle){
