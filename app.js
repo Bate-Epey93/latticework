@@ -934,7 +934,7 @@ applyTheme();
 const apiKeyInput = document.getElementById("apiKeyInput");
 if (apiKeyInput) {
   apiKeyInput.value = sGet("lattice_apikey") || "";
-  apiKeyInput.addEventListener("input", () => { sSet("lattice_apikey", apiKeyInput.value.trim()); if (typeof updateSitMode === "function") updateSitMode(); });
+  apiKeyInput.addEventListener("input", () => { sSet("lattice_apikey", apiKeyInput.value.trim()); if (typeof updateSitMode === "function") updateSitMode(); if (typeof updateComposeMode === "function") updateComposeMode(); });
 }
 function getApiKey(){ return (sGet("lattice_apikey") || "").trim(); }
 
@@ -1054,7 +1054,7 @@ function renderHits(matches, offline, noteHtml){
         <button class="mlink" data-lattice="${m.id}">See in lattice &#8599;</button>
       </div>
     </div>`;
-  }).join("") + `<div class="sit-note">Facing a decision here? <button class="sit-log">Log it in the journal with these models</button> — score it when it resolves.</div>`;
+  }).join("") + `<div class="sit-note">Writing something here? <button class="sit-compose">Draft a content brief from this &#8594;</button> · or <button class="sit-log">log it in the journal</button> to score later.</div>`;
   sitResults.querySelectorAll("[data-goto]").forEach(b => b.addEventListener("click", () => {
     document.querySelector('[data-tab=models]').click();
     setTimeout(() => gotoModel(b.dataset.goto), 80);
@@ -1069,6 +1069,11 @@ function renderHits(matches, offline, noteHtml){
   if(logBtn) logBtn.addEventListener("click", () => {
     if(typeof prefillJournal === "function")
       prefillJournal({ decision: (sitInput.value||"").trim(), models: matches.map(mm => mm.id) });
+  });
+  const cmpBtn = sitResults.querySelector(".sit-compose");
+  if(cmpBtn) cmpBtn.addEventListener("click", () => {
+    if(typeof prefillCompose === "function")
+      prefillCompose({ pointA: (sitInput.value||"").trim() });
   });
 }
 
@@ -1100,6 +1105,234 @@ if(sitGo){
   window.addEventListener("offline", updateSitMode);
   updateSitMode();
 }
+
+/* ================= COMPOSE (Fuzzy-Goal brief) ================= */
+(function(){
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const ymd = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+  const jget = (k,d) => { try{ const v=sGet(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } };
+  const jset = (k,v) => sSet(k, JSON.stringify(v));
+  const anchor = id => `<button class="cmp-anchor" data-goto="${id}"><svg class="enso enso-inline" style="color:${DOMAINS[byId[id].d].color}"><use href="#e-dom-${byId[id].d}"/></svg>${byId[id].code}</button>`;
+
+  // slot: {key, zone:'A'|'space'|'B', heading, move, models:[id], prompt}
+  const JOBS = {
+    info: { label:"Informational article", slots:[
+      {key:"reader", zone:"A", heading:"Who's asking, and what they already believe", move:"Diagnose search intent + current knowledge and misconceptions", models:["aud","cok"],
+       prompt:"Who types this query, at what awareness level? What do they already (wrongly) assume, and where exactly is the gap you must close?"},
+      {key:"answer", zone:"space", heading:"Direct answer — 40–60 words up top", move:"Answer-first, for the featured snippet and AI answers", models:["pyr"],
+       prompt:"Answer the exact query in 2–3 plain sentences before any preamble. This is the block that wins the snippet."},
+      {key:"outline", zone:"space", heading:"H2 outline — one sub-question each", move:"Break the topic into independent, self-contained modules", models:["decomp"],
+       prompt:"List 4–7 H2s, each answering one sub-question a reader would ask next. Each should stand alone."},
+      {key:"depth", zone:"space", heading:"Root-cause depth on the core question", move:"Go one or two layers past the obvious answer", models:["whys"],
+       prompt:"For the main question, drill deeper than the surface answer — the 'why behind the why' that thin competitors skip."},
+      {key:"counter", zone:"space", heading:"Fair counter-coverage", move:"Address the strongest objection or opposing view honestly", models:["steel"],
+       prompt:"Name the best counter-argument or the thing skeptics say, and handle it fairly. This is EEAT and trust."},
+      {key:"trust", zone:"space", heading:"Proof — EEAT signals", move:"Show expertise that a bluffer can't fake", models:["signal","proof"],
+       prompt:"What original data, citations, credentials, or examples make this authoritative rather than rewritten? Add them."},
+      {key:"takeaways", zone:"B", heading:"Key takeaways + FAQ", move:"The real job answered, plus the questions left over", models:["jtbd"],
+       prompt:"3–5 scannable takeaways and 2–3 FAQs (the 'people also ask' tail)."},
+      {key:"land", zone:"B", heading:"Where they leave — understanding + soft next step", move:"One clear conclusion and a low-pressure CTA", models:["pos","aud"],
+       prompt:"The single thing they now understand, and the one soft next action (subscribe, related guide, quote)."},
+    ]},
+    trans: { label:"Transactional / landing page", slots:[
+      {key:"reader", zone:"A", heading:"The hesitant buyer, mid-comparison", move:"Name their stage and who they're comparing you against", models:["aud","funnel"],
+       prompt:"Who lands here, how ready are they, and what alternatives (including doing nothing) are they weighing?"},
+      {key:"value", zone:"space", heading:"Value-prop headline", move:"A plain-words, differentiated promise", models:["cok","pos"],
+       prompt:"State the core value in words a 12-year-old gets — no jargon. What one slot do you own that rivals don't?"},
+      {key:"objections", zone:"space", heading:"Objection → proof pairs", move:"Dissolve each doubt with the proof that answers it", models:["steel","proof","signal"],
+       prompt:"List the top 3–5 objections in the reader's order of doubt; pair each with the specific proof (testimonial, stat, guarantee, credential)."},
+      {key:"loss", zone:"space", heading:"Cost of inaction", move:"Frame what staying put costs them", models:["loss"],
+       prompt:"What does NOT acting cost — money, risk, time, peace of mind? Frame the loss, not only the upside."},
+      {key:"derisk", zone:"space", heading:"Risk reversal", move:"Turn a one-way door into a two-way door", models:["doors"],
+       prompt:"Lower the stakes: free trial, cancel anytime, money-back, no-obligation quote. Make the yes reversible."},
+      {key:"cta", zone:"B", heading:"The one CTA", move:"A single, unmistakable action", models:["pos","aud"],
+       prompt:"The single desired action, stated once, impossible to miss. Exact button copy."},
+    ]},
+  };
+  const ZONE = { A:"Point A", space:"Challenge space", B:"Point B" };
+
+  function skeleton(job){
+    return JOBS[job].slots.map(s => ({ key:s.key, zone:s.zone, heading:s.heading, move:s.move, models:s.models.slice(), draft:"" }));
+  }
+
+  /* ---- LLM brief (BYO key, mirrors llmMatch) ---- */
+  async function llmBrief(intake, key, skel){
+    const job = JOBS[intake.job];
+    const slotSpec = skel.map(s => `- ${s.key} [${ZONE[s.zone]}] "${s.heading}" — ${s.move}. Anchoring models: ${s.models.map(id=>byId[id].name).join(", ")}. Writer prompt: ${JOBS[intake.job].slots.find(x=>x.key===s.key).prompt}`).join("\n");
+    const schema = {
+      type:"object", additionalProperties:false, required:["headlines","sections","openQuestions"],
+      properties:{
+        headlines:{ type:"array", items:{type:"string"} },
+        sections:{ type:"array", items:{ type:"object", additionalProperties:false, required:["key","draft"],
+          properties:{ key:{ type:"string", enum: skel.map(s=>s.key) }, draft:{ type:"string" } } } },
+        openQuestions:{ type:"array", items:{type:"string"} }
+      }
+    };
+    const system =
+      `You write a working content BRIEF for a professional copywriter — structure and direction they write the piece FROM, not finished copy. Job type: ${job.label}. ` +
+      `The brief has fixed sections (below), each anchored to a mental model. For EACH section, write 'draft' as 2–4 sentences of concrete direction tailored to THIS reader crossing (Point A to Point B) — what to cover and the move to make, in the writer's shoes, not a definition of the model. ` +
+      `Also give 2–3 'headlines' options and a short 'openQuestions' list of things to verify or research. Keep it tight and specific to the keyword and audience. Do not invent statistics; where a figure or claim is needed, say [verify].\n\n` +
+      `SECTIONS:\n${slotSpec}\n\n` +
+      `POINT A (reader now): ${intake.pointA}\nPOINT B (goal + CTA): ${intake.pointB}` +
+      (intake.awareness?`\nReader awareness: ${intake.awareness}`:"") + (intake.keyword?`\nTarget keyword: ${intake.keyword}`:"") + (intake.tone?`\nTone: ${intake.tone}`:"");
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{ "content-type":"application/json", "x-api-key":key, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+      body: JSON.stringify({ model:"claude-sonnet-5", max_tokens:2200, thinking:{type:"disabled"}, system,
+        messages:[{role:"user", content:`Write the ${job.label} brief.`}],
+        output_config:{ format:{ type:"json_schema", schema } } })
+    });
+    if(!res.ok){ let msg="HTTP "+res.status; try{const e=await res.json(); msg=(e.error&&e.error.message)||msg;}catch(_){} const err=new Error(msg); err.status=res.status; throw err; }
+    const data = await res.json();
+    if(data.stop_reason === "refusal") throw Object.assign(new Error("refusal"), {refusal:true});
+    const tb = (data.content||[]).find(b=>b.type==="text");
+    return JSON.parse(tb.text);
+  }
+
+  /* ---- storage ---- */
+  const briefs = () => jget("lattice_briefs", []);
+  const saveBriefs = b => jset("lattice_briefs", b);
+
+  /* ---- render ---- */
+  const cmpJob=$("cmpJob"), cmpA=$("cmpA"), cmpB=$("cmpB"), cmpAware=$("cmpAware"), cmpKw=$("cmpKw"), cmpTone=$("cmpTone"),
+        cmpGo=$("cmpGo"), cmpMode=$("cmpMode"), cmpResults=$("cmpResults"), cmpSaved=$("cmpSaved");
+  let currentId = null;
+
+  window.updateComposeMode = updateComposeMode;
+  function updateComposeMode(){
+    if(!cmpMode) return;
+    cmpMode.textContent = getApiKey() ? "drafted by Claude" : "structured skeleton — add a key in settings for a first-pass draft";
+  }
+
+  function briefHtml(b){
+    const headlines = (b.headlines&&b.headlines.length)
+      ? `<div class="cmp-headlines"><div class="cmp-hl-h">Headline options</div>${b.headlines.map(h=>`<p>${esc(h)}</p>`).join("")}</div>` : "";
+    const secs = b.sections.map((s,i) => `
+      <div class="cmp-sec cmp-zone-${s.zone}">
+        <div class="cmp-sec-head">
+          <span class="cmp-znum">${i+1}</span>
+          <span class="cmp-zone-tag">${ZONE[s.zone]}</span>
+          <div class="cmp-anchors">${s.models.map(anchor).join("")}</div>
+        </div>
+        <h4>${esc(s.heading)}</h4>
+        <p class="cmp-move">${esc(s.move)}</p>
+        <textarea class="cmp-draft" data-key="${s.key}" rows="3" placeholder="${esc(JOBS[b.job].slots.find(x=>x.key===s.key).prompt)}">${esc(s.draft)}</textarea>
+      </div>`).join("");
+    const oq = (b.openQuestions&&b.openQuestions.length)
+      ? `<div class="cmp-oq"><div class="cmp-oq-h">Verify / open questions</div><ul>${b.openQuestions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>` : "";
+    return `
+      <div class="cmp-brief" data-id="${b.id}">
+        <div class="cmp-brief-top">
+          <div class="cmp-brief-meta">${JOBS[b.job].label}${b.keyword?` · <b>${esc(b.keyword)}</b>`:""} · ${b.built==="llm"?"Claude draft":"skeleton"}</div>
+          <div class="cmp-brief-act"><button class="mlink cmp-copy">Copy brief</button><button class="mlink cmp-del">Delete</button></div>
+        </div>
+        <div class="cmp-ab-row">
+          <div class="cmp-ab-box cmp-zone-A"><span class="cmp-zone-tag">Point A — reader now</span><p contenteditable="true" class="cmp-ab" data-ab="pointA">${esc(b.pointA)}</p></div>
+          <div class="cmp-ab-box cmp-zone-B"><span class="cmp-zone-tag">Point B — land</span><p contenteditable="true" class="cmp-ab" data-ab="pointB">${esc(b.pointB)}</p></div>
+        </div>
+        ${headlines}
+        ${secs}
+        ${oq}
+      </div>`;
+  }
+
+  function wireBrief(b){
+    const root = cmpResults.querySelector(`.cmp-brief[data-id="${b.id}"]`); if(!root) return;
+    root.querySelectorAll(".cmp-draft").forEach(t => t.addEventListener("input", () => {
+      const sec = b.sections.find(x=>x.key===t.dataset.key); if(sec){ sec.draft = t.value; persist(b); }
+    }));
+    root.querySelectorAll(".cmp-ab").forEach(p => p.addEventListener("input", () => { b[p.dataset.ab] = p.textContent; persist(b); }));
+    root.querySelectorAll("[data-goto]").forEach(x => x.addEventListener("click", () => {
+      document.querySelector('[data-tab=models]').click(); setTimeout(()=>gotoModel(x.dataset.goto),80);
+    }));
+    root.querySelector(".cmp-copy").addEventListener("click", e => { copyBrief(b); const t=e.target; const o=t.textContent; t.textContent="Copied ✓"; setTimeout(()=>t.textContent=o,1400); });
+    root.querySelector(".cmp-del").addEventListener("click", () => {
+      saveBriefs(briefs().filter(x=>x.id!==b.id));
+      if(currentId===b.id){ currentId=null; cmpResults.innerHTML=""; }
+      renderSaved();
+    });
+  }
+
+  function persist(b){ const all=briefs(); const i=all.findIndex(x=>x.id===b.id); if(i>=0){ all[i]=b; saveBriefs(all); } }
+
+  function showBrief(b){ currentId=b.id; cmpResults.innerHTML = briefHtml(b); wireBrief(b); }
+
+  function toMarkdown(b){
+    let md = `# ${JOBS[b.job].label} brief\n\n`;
+    if(b.keyword) md += `**Keyword:** ${b.keyword}  \n`;
+    md += `**Point A (reader now):** ${b.pointA}\n\n**Point B (goal + CTA):** ${b.pointB}\n\n`;
+    if(b.headlines&&b.headlines.length) md += `## Headline options\n` + b.headlines.map(h=>`- ${h}`).join("\n") + "\n\n";
+    md += `## Outline\n\n`;
+    b.sections.forEach((s,i) => {
+      md += `### ${i+1}. ${s.heading} — via ${s.models.map(id=>byId[id].name).join(", ")}\n`;
+      md += `_${s.move}_\n\n${s.draft||""}\n\n`;
+    });
+    if(b.openQuestions&&b.openQuestions.length) md += `## Verify / open questions\n` + b.openQuestions.map(q=>`- ${q}`).join("\n") + "\n";
+    return md;
+  }
+  function copyBrief(b){
+    const md = toMarkdown(b);
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(md).catch(()=>fallbackCopy(md));
+    else fallbackCopy(md);
+  }
+  function fallbackCopy(text){ const t=document.createElement("textarea"); t.value=text; document.body.appendChild(t); t.select(); try{document.execCommand("copy");}catch(e){} t.remove(); }
+
+  function renderSaved(){
+    const all = briefs();
+    if(!all.length){ cmpSaved.innerHTML=""; return; }
+    cmpSaved.innerHTML = `<div class="cmp-saved-h">Saved briefs</div>` + all.map(b =>
+      `<button class="cmp-saved-row ${b.id===currentId?"on":""}" data-open="${b.id}"><span>${JOBS[b.job].label}${b.keyword?` · ${esc(b.keyword)}`:""}</span><span class="cmp-saved-date">${b.date}</span></button>`).join("");
+    cmpSaved.querySelectorAll("[data-open]").forEach(x => x.addEventListener("click", () => {
+      const b = briefs().find(y=>y.id===x.dataset.open); if(b){ showBrief(b); renderSaved(); cmpResults.scrollIntoView({behavior:"smooth",block:"start"}); }
+    }));
+  }
+
+  async function build(){
+    const pointA=(cmpA.value||"").trim(), pointB=(cmpB.value||"").trim();
+    if(pointA.length<6 || pointB.length<6){ (pointA.length<6?cmpA:cmpB).focus(); return; }
+    const intake = { job:cmpJob.value, pointA, pointB, awareness:cmpAware.value, keyword:(cmpKw.value||"").trim(), tone:(cmpTone.value||"").trim() };
+    const skel = skeleton(intake.job);
+    const key = getApiKey();
+    let headlines=[], openQuestions=[], built="offline", errNote="";
+    if(key && navigator.onLine){
+      cmpResults.innerHTML = `<div class="sit-spinner"><i></i>Building your brief with Claude…</div>`;
+      cmpGo.disabled = true;
+      try{
+        const r = await llmBrief(intake, key, skel);
+        headlines = r.headlines||[]; openQuestions = r.openQuestions||[];
+        (r.sections||[]).forEach(rs => { const sec = skel.find(x=>x.key===rs.key); if(sec) sec.draft = rs.draft||""; });
+        built = "llm";
+      }catch(err){
+        errNote = err.refusal ? "Claude declined this one — here's the structured skeleton to fill in."
+          : err.status===401 ? "That API key was rejected — here's the skeleton; fix the key in settings."
+          : "Couldn't reach Claude — here's the structured skeleton to fill in.";
+      }finally{ cmpGo.disabled = false; }
+    }
+    const b = { id:"b"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date:ymd(),
+      job:intake.job, pointA, pointB, awareness:intake.awareness, keyword:intake.keyword, tone:intake.tone,
+      headlines, openQuestions, built, sections:skel, source:"manual" };
+    const all = briefs(); all.unshift(b); saveBriefs(all);
+    showBrief(b); renderSaved();
+    if(errNote){ const n=document.createElement("div"); n.className="sit-note"; n.style.marginBottom="14px"; n.textContent=errNote; cmpResults.prepend(n); }
+  }
+
+  if(cmpGo){
+    cmpGo.addEventListener("click", build);
+    window.addEventListener("online", updateComposeMode);
+    window.addEventListener("offline", updateComposeMode);
+    updateComposeMode();
+    renderSaved();
+  }
+
+  window.prefillCompose = function(opts){
+    if(!cmpA) return;
+    if(opts && opts.pointA) cmpA.value = opts.pointA;
+    if(opts && opts.job && JOBS[opts.job]) cmpJob.value = opts.job;
+    document.querySelector('[data-tab=compose]').click();
+    setTimeout(()=>{ cmpB.focus(); document.querySelector(".cmp-box").scrollIntoView({behavior:"smooth",block:"start"}); }, 80);
+  };
+})();
 
 /* ================= DAILY PRACTICE ================= */
 (function(){
