@@ -808,3 +808,43 @@ html[data-theme="dark"] .cmp-draft{background:rgba(255,255,255,.05)}
 .cmp-saved-row.on{border-color:var(--accent)}
 .cmp-saved-date{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint)}
 .sit-compose{color:var(--accent);cursor:pointer;text-decoration:underline;background:none;border:none;font:inherit;padding:0}
+
+/* ---------- compose: tinted liquid-gloss cards (whole card = zone color) ---------- */
+.cmp-zone-A{--zc:#B65E2E}
+.cmp-zone-space{--zc:#B9451F}
+.cmp-zone-B{--zc:#22786B}
+html[data-theme="dark"] .cmp-zone-A{--zc:#DE9366}
+html[data-theme="dark"] .cmp-zone-space{--zc:#D95B31}
+html[data-theme="dark"] .cmp-zone-B{--zc:#72C4B2}
+.cmp-sec,.cmp-ab-box{
+  position:relative;overflow:hidden;
+  background:
+    linear-gradient(152deg, color-mix(in srgb, var(--zc) 16%, transparent), color-mix(in srgb, var(--zc) 5%, transparent) 62%),
+    var(--surface);
+  border:1px solid color-mix(in srgb, var(--zc) 28%, var(--line));
+  border-left:3px solid var(--zc);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+  box-shadow:var(--shadow), var(--glass-inset);
+}
+html[data-theme="dark"] .cmp-sec,html[data-theme="dark"] .cmp-ab-box{
+  background:
+    linear-gradient(152deg, color-mix(in srgb, var(--zc) 24%, transparent), color-mix(in srgb, var(--zc) 8%, transparent) 62%),
+    var(--surface);
+  border-color:color-mix(in srgb, var(--zc) 34%, var(--line));
+}
+.cmp-sec::before,.cmp-ab-box::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
+  background:linear-gradient(150deg, rgba(255,255,255,.5), rgba(255,255,255,0) 44%);
+}
+html[data-theme="dark"] .cmp-sec::before,html[data-theme="dark"] .cmp-ab-box::before{
+  background:linear-gradient(150deg, rgba(255,255,255,.09), rgba(255,255,255,0) 44%);
+}
+.cmp-sec>*,.cmp-ab-box>*{position:relative;z-index:1}
+.cmp-zone-tag{color:color-mix(in srgb, var(--zc) 66%, var(--muted))}
+/* keep drafts crisp/legible on the tinted card */
+.cmp-draft{background:var(--surface);box-shadow:inset 0 1px 2px rgba(33,30,25,.05)}
+html[data-theme="dark"] .cmp-draft{background:rgba(0,0,0,.22)}
+/* fallback if color-mix unsupported: still readable neutral card */
+@supports not (background: color-mix(in srgb, red 10%, transparent)){
+  .cmp-sec,.cmp-ab-box{background:var(--surface)}
+}
