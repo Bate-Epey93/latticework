@@ -1,7 +1,7 @@
 /* The Latticework — service worker
    Cache-first for app shell; runtime cache for Google Fonts.
    IMPORTANT: bump VERSION on every deploy or clients keep stale files. */
-const VERSION = "v12";
+const VERSION = "v13";
 const CACHE = "latticework-" + VERSION;
 const ASSETS = [
   ".",

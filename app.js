@@ -938,6 +938,7 @@ if (apiKeyInput) {
 }
 function getApiKey(){ return (sGet("lattice_apikey") || "").trim(); }
 
+
 /* ================= SITUATION -> MODELS ================= */
 /* ---- offline fallback: compact BM25 over the model corpus ---- */
 const STOP = new Set("the a an and or but of to in on for with at by from as is are was be it this that these those you your i we they he she them his her its their our my me not no do does did so if then than into about over under out up down off can will would should could may might must have has had he's".split(" "));
@@ -968,6 +969,77 @@ const bm25 = (() => {
   };
 })();
 
+/* ---- model chain: preferred model, automatic fallback to Opus 4.8 ---- */
+/* thinking:null means OMIT the field (Fable 5 has always-on thinking and 400s on
+   {"type":"disabled"}). Opus 5 accepts disabled only at effort <= high. */
+const AI_MODELS = {
+  "claude-opus-5":  { label:"Opus 5",  thinking:{type:"disabled"} },
+  "claude-fable-5": { label:"Fable 5", thinking:null },
+};
+const AI_FALLBACK = "claude-opus-4-8";
+const AI_FALLBACK_LABEL = "Opus 4.8";
+function preferredModel(){ const m = sGet("lattice_model"); return AI_MODELS[m] ? m : "claude-opus-5"; }
+function modelLabel(id){ return (AI_MODELS[id] && AI_MODELS[id].label) || (id === AI_FALLBACK ? AI_FALLBACK_LABEL : id); }
+const modelSelect = document.getElementById("modelSelect");
+if (modelSelect) {
+  modelSelect.value = preferredModel();
+  modelSelect.addEventListener("change", () => {
+    sSet("lattice_model", modelSelect.value);
+    if (typeof updateSitMode === "function") updateSitMode();
+    if (typeof updateComposeMode === "function") updateComposeMode();
+  });
+}
+
+async function apiRequest(model, opts, key){
+  const cfg = AI_MODELS[model] || { thinking:{type:"disabled"} };
+  const body = {
+    model,
+    max_tokens: opts.maxTokens,
+    system: opts.system,
+    messages: [{ role:"user", content: opts.user }],
+    output_config: { effort: opts.effort || "low", format:{ type:"json_schema", schema: opts.schema } }
+  };
+  if(cfg.thinking) body.thinking = cfg.thinking;   // omitted entirely when null
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{
+      "content-type":"application/json",
+      "x-api-key": key,
+      "anthropic-version":"2023-06-01",
+      "anthropic-dangerous-direct-browser-access":"true"
+    },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok){
+    let msg = "HTTP " + res.status;
+    try{ const e = await res.json(); msg = (e.error && e.error.message) || msg; }catch(_){}
+    const err = new Error(msg); err.status = res.status; throw err;
+  }
+  const data = await res.json();
+  if(data.stop_reason === "refusal") throw Object.assign(new Error("refusal"), {refusal:true});
+  const tb = (data.content || []).find(b => b.type === "text");
+  if(!tb) throw new Error("empty response");
+  return JSON.parse(tb.text);
+}
+
+/* Try the preferred model, then fall back to Opus 4.8. Auth failures don't retry
+   (a second call with the same bad key can't help). Returns {data, model}. */
+async function callClaude(opts, key){
+  const primary = preferredModel();
+  const chain = primary === AI_FALLBACK ? [primary] : [primary, AI_FALLBACK];
+  let lastErr;
+  for(let i=0; i<chain.length; i++){
+    try{
+      return { data: await apiRequest(chain[i], opts, key), model: chain[i] };
+    }catch(err){
+      lastErr = err;
+      const authFail = err.status === 401 || err.status === 403;
+      if(authFail || i === chain.length - 1) throw err;
+    }
+  }
+  throw lastErr;
+}
+
 /* ---- LLM matcher: user's own Claude key, direct browser call ---- */
 const PROTOCOLS = ["The 5-minute decision triage","Expected value worksheet","Bayes in 60 seconds","Pre-mortem script","10/10/10 + regret minimization","The weekly decision journal"];
 const MODEL_IDS = MODELS.map(m => m.id);
@@ -989,33 +1061,8 @@ async function llmMatch(situation, key){
     "Choose the 3-5 MOST relevant models from the catalog below (fewer if only a few truly fit), ordered most relevant first. " +
     "For each, write `why` as ONE concrete sentence naming how that model bears on THIS specific situation — not a generic definition. " +
     "Optionally set `protocol` to the single most useful field protocol. Only pick ids from the catalog.\n\nCATALOG (id | name (domain): essence):\n" + CATALOG;
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method:"POST",
-    headers:{
-      "content-type":"application/json",
-      "x-api-key": key,
-      "anthropic-version":"2023-06-01",
-      "anthropic-dangerous-direct-browser-access":"true"
-    },
-    body: JSON.stringify({
-      model:"claude-sonnet-5",
-      max_tokens:1500,
-      thinking:{type:"disabled"},
-      system,
-      messages:[{role:"user", content: situation}],
-      output_config:{ format:{ type:"json_schema", schema: SIT_SCHEMA } }
-    })
-  });
-  if(!res.ok){
-    let msg = "HTTP " + res.status;
-    try{ const e = await res.json(); msg = (e.error && e.error.message) || msg; }catch(_){}
-    const err = new Error(msg); err.status = res.status; throw err;
-  }
-  const data = await res.json();
-  if(data.stop_reason === "refusal") throw Object.assign(new Error("refusal"), {refusal:true});
-  const textBlock = (data.content || []).find(b => b.type === "text");
-  const parsed = JSON.parse(textBlock.text);
-  return (parsed.matches || []).filter(m => byId[m.id]);
+  const r = await callClaude({ system, user: situation, schema: SIT_SCHEMA, maxTokens: 1500, effort: "low" }, key);
+  return ((r.data.matches) || []).filter(m => byId[m.id]);
 }
 
 /* ---- UI ---- */
@@ -1026,7 +1073,7 @@ const sitResults = document.getElementById("sitResults");
 
 function updateSitMode(){
   if(!sitMode) return;
-  sitMode.textContent = getApiKey() ? "analyzed by Claude" : "offline match — add a key in settings for tailored analysis";
+  sitMode.textContent = getApiKey() ? `analyzed by ${modelLabel(preferredModel())}` : "offline match — add a key in settings for tailored analysis";
 }
 
 function renderHits(matches, offline, noteHtml){
@@ -1208,18 +1255,7 @@ if(sitGo){
       `SECTIONS:\n${slotSpec}\n\n` +
       `POINT A (reader now): ${intake.pointA}\nPOINT B (goal + CTA): ${intake.pointB}` +
       (intake.awareness?`\nReader awareness: ${intake.awareness}`:"") + (intake.keyword?`\nTarget keyword: ${intake.keyword}`:"") + (intake.tone?`\nTone: ${intake.tone}`:"");
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method:"POST",
-      headers:{ "content-type":"application/json", "x-api-key":key, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-      body: JSON.stringify({ model:"claude-sonnet-5", max_tokens:2200, thinking:{type:"disabled"}, system,
-        messages:[{role:"user", content:`Write the ${job.label} brief.`}],
-        output_config:{ format:{ type:"json_schema", schema } } })
-    });
-    if(!res.ok){ let msg="HTTP "+res.status; try{const e=await res.json(); msg=(e.error&&e.error.message)||msg;}catch(_){} const err=new Error(msg); err.status=res.status; throw err; }
-    const data = await res.json();
-    if(data.stop_reason === "refusal") throw Object.assign(new Error("refusal"), {refusal:true});
-    const tb = (data.content||[]).find(b=>b.type==="text");
-    return JSON.parse(tb.text);
+    return callClaude({ system, user:`Write the ${job.label} brief.`, schema, maxTokens: 2200, effort: "medium" }, key);
   }
 
   /* ---- storage ---- */
@@ -1234,7 +1270,7 @@ if(sitGo){
   window.updateComposeMode = updateComposeMode;
   function updateComposeMode(){
     if(!cmpMode) return;
-    cmpMode.textContent = getApiKey() ? "drafted by Claude" : "structured skeleton — add a key in settings for a first-pass draft";
+    cmpMode.textContent = getApiKey() ? `drafted by ${modelLabel(preferredModel())}` : "structured skeleton — add a key in settings for a first-pass draft";
   }
 
   function briefHtml(b){
@@ -1256,7 +1292,7 @@ if(sitGo){
     return `
       <div class="cmp-brief" data-id="${b.id}">
         <div class="cmp-brief-top">
-          <div class="cmp-brief-meta">${JOBS[b.job].label}${b.keyword?` · <b>${esc(b.keyword)}</b>`:""} · ${b.built==="llm"?"Claude draft":"skeleton"}</div>
+          <div class="cmp-brief-meta">${JOBS[b.job].label}${b.keyword?` · <b>${esc(b.keyword)}</b>`:""} · ${b.built && b.built!=="offline" ? esc(modelLabel(b.built))+" draft" : "skeleton"}</div>
           <div class="cmp-brief-act"><button class="mlink cmp-copy">Copy brief</button><button class="mlink cmp-del">Delete</button></div>
         </div>
         <div class="cmp-ab-row">
@@ -1331,10 +1367,11 @@ if(sitGo){
       cmpResults.innerHTML = `<div class="sit-spinner"><i></i>Building your brief with Claude…</div>`;
       cmpGo.disabled = true;
       try{
-        const r = await llmBrief(intake, key, skel);
+        const res = await llmBrief(intake, key, skel);
+        const r = res.data;
         headlines = r.headlines||[]; openQuestions = r.openQuestions||[];
         (r.sections||[]).forEach(rs => { const sec = skel.find(x=>x.key===rs.key); if(sec) sec.draft = rs.draft||""; });
-        built = "llm";
+        built = res.model;
       }catch(err){
         errNote = err.refusal ? "Claude declined this one — here's the structured skeleton to fill in."
           : err.status===401 ? "That API key was rejected — here's the skeleton; fix the key in settings."

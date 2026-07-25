@@ -848,3 +848,4 @@ html[data-theme="dark"] .cmp-draft{background:rgba(0,0,0,.22)}
 @supports not (background: color-mix(in srgb, red 10%, transparent)){
   .cmp-sec,.cmp-ab-box{background:var(--surface)}
 }
+.sp-select{appearance:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px}
