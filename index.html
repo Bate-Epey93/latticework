@@ -51,6 +51,9 @@
     <button class="tab-btn" data-tab="situation" data-group="work">06 · Situation</button>
     <button class="tab-btn" data-tab="compose" data-group="work">07 · Compose</button>
   </div>
+  <button class="search-btn" id="searchBtn" aria-label="Search everything">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+  </button>
   <button class="settings-btn" id="settingsBtn" aria-label="Settings" aria-haspopup="true">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
@@ -346,6 +349,17 @@
   THE LATTICEWORK · MODELS ARE MAPS, NOT TERRITORY · REVISE ON CONTACT WITH REALITY
 </footer>
 
+<div class="pal-scrim" id="palScrim" hidden>
+  <div class="pal" role="dialog" aria-label="Search everything" aria-modal="true">
+    <svg class="enso pal-mark" aria-hidden="true"><use href="#e-brand"/></svg>
+    <div class="pal-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" class="pal-ico" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="palInput" placeholder="Search models, briefs, decisions, notes…" autocomplete="off" spellcheck="false">
+      <kbd class="pal-esc">esc</kbd>
+    </div>
+    <div class="pal-results" id="palResults"></div>
+  </div>
+</div>
 <script src="app.js" defer></script>
 </body>
 </html>

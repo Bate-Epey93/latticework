@@ -1305,6 +1305,7 @@ function blindSpots(){
     ]},
   };
   const ZONE = { A:"Point A", space:"Challenge space", B:"Point B", check:"Before publish" };
+  window.JOB_LABELS = Object.fromEntries(Object.entries(JOBS).map(([k,v]) => [k, v.label]));
 
   /* Insurance overlay — a reweight on top of any job, not a job of its own.
      Applied PER SUB-INTENT: an informational piece keeps its clarity skeleton and
@@ -1570,6 +1571,13 @@ function blindSpots(){
     updateComposeMode();
     renderSaved();
   }
+
+  window.openBrief = function(id){
+    const b = briefs().find(x => x.id === id);
+    if(!b) return;
+    document.querySelector('[data-tab=compose]').click();
+    setTimeout(() => { showBrief(b); renderSaved(); cmpResults.scrollIntoView({behavior:"smooth", block:"start"}); }, 80);
+  };
 
   window.prefillCompose = function(opts){
     if(!cmpA) return;
@@ -1901,6 +1909,129 @@ function blindSpots(){
 
   maybeAwardStreak();
   renderStreak(); renderAgenda(); renderProgPanel(); renderJournal(); updateBadge();
+})();
+
+/* ================= GLOBAL SEARCH ================= */
+/* A retrieval app should be searchable over its own artifacts, not just its canon. */
+(function(){
+  const scrim = document.getElementById("palScrim"), input = document.getElementById("palInput"),
+        results = document.getElementById("palResults"), btn = document.getElementById("searchBtn");
+  if(!scrim || !input) return;
+  const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const read = (k,d) => { try{ const v = sGet(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } };
+  let items = [], sel = 0;
+
+  const TYPES = {
+    model:    { label:"Model",    glyph:null },
+    brief:    { label:"Brief",    glyph:"e-compose" },
+    decision: { label:"Decision", glyph:"e-journal" },
+    note:     { label:"Note",     glyph:"e-feyn" },
+  };
+
+  /* Build the corpus fresh each open — the data is small and always current. */
+  function corpus(){
+    const out = [];
+    MODELS.forEach(m => out.push({
+      type:"model", id:m.id, title:m.name, sub:m.essence, domain:m.d,
+      text:[m.name,m.short,m.essence,m.mech,m.ex,m.hook].join(" ") }));
+    read("lattice_briefs",[]).forEach(b => {
+      const label = (typeof JOB_LABELS === "object" && JOB_LABELS[b.job]) || b.job;
+      const drafts = (b.sections||[]).map(x=>x.draft).filter(Boolean).join(" ");
+      out.push({ type:"brief", id:b.id, title:(b.keyword || b.pointB || "Brief").slice(0,70),
+        sub:`${label} · ${b.date}`, text:[b.keyword,b.pointA,b.pointB,drafts,(b.headlines||[]).join(" ")].join(" ") });
+    });
+    read("lattice_journal",[]).forEach(j => out.push({
+      type:"decision", id:j.id, title:j.decision.slice(0,80), sub:`${j.prob}% · ${j.date}`,
+      text:[j.decision,j.expect,(j.models||[]).map(id=>byId[id]?byId[id].name:"").join(" ")].join(" ") }));
+    read("lattice_feynman",[]).forEach((f,i) => out.push({
+      type:"note", id:String(i), title:(byId[f.id] ? byId[f.id].name : "Note") + " — explained",
+      sub:f.date, text:f.text, modelId:f.id }));
+    return out;
+  }
+
+  function score(q, doc){
+    const qt = tok(q); if(!qt.length) return 0;
+    const dt = tok(doc.text), set = new Set(dt);
+    const titleSet = new Set(tok(doc.title));
+    let s = 0;
+    qt.forEach(t => {
+      if(titleSet.has(t)) s += 6;
+      else if(set.has(t)) s += 2;
+      else if(dt.some(w => w.indexOf(t) === 0)) s += 1;   // prefix, so partial typing works
+    });
+    if(doc.text.toLowerCase().includes(q.toLowerCase())) s += 3;   // exact phrase
+    return s;
+  }
+
+  function glyphFor(it){
+    if(it.type === "model") return `<svg class="enso pal-glyph" style="color:${DOMAINS[it.domain].color}"><use href="#e-dom-${it.domain}"/></svg>`;
+    return `<svg class="enso pal-glyph"><use href="#${TYPES[it.type].glyph}"/></svg>`;
+  }
+
+  function render(){
+    if(!items.length){
+      const q = input.value.trim();
+      results.innerHTML = q
+        ? `<div class="pal-empty">Nothing matches “${esc(q)}”.</div>`
+        : `<div class="pal-empty">Search across the 38 models, your briefs, logged decisions, and Feynman notes.</div>`;
+      return;
+    }
+    results.innerHTML = items.map((it,i) => `
+      <button class="pal-row${i===sel?" on":""}" data-i="${i}">
+        ${glyphFor(it)}
+        <span class="pal-txt"><span class="pal-title">${esc(it.title)}</span><span class="pal-sub">${esc(it.sub||"")}</span></span>
+        <span class="pal-type">${TYPES[it.type].label}</span>
+      </button>`).join("");
+    results.querySelectorAll(".pal-row").forEach(r => {
+      r.addEventListener("mouseenter", () => { sel = +r.dataset.i; mark(); });
+      r.addEventListener("click", () => open(items[+r.dataset.i]));
+    });
+  }
+  function mark(){
+    results.querySelectorAll(".pal-row").forEach((r,i) => r.classList.toggle("on", i===sel));
+    const on = results.querySelector(".pal-row.on");
+    if(on) on.scrollIntoView({block:"nearest"});
+  }
+
+  function search(){
+    const q = input.value.trim();
+    if(!q){ items = []; sel = 0; render(); return; }
+    items = corpus().map(d => ({d, s:score(q,d)})).filter(x => x.s > 0)
+      .sort((a,b) => b.s - a.s).slice(0,12).map(x => x.d);
+    sel = 0; render();
+  }
+
+  function open(it){
+    close();
+    if(it.type === "model"){
+      document.querySelector('[data-tab=models]').click();
+      setTimeout(()=>gotoModel(it.id), 80);
+    } else if(it.type === "brief"){
+      if(typeof openBrief === "function") openBrief(it.id);
+    } else if(it.type === "decision"){
+      document.querySelector('[data-tab=apply]').click();
+      setTimeout(()=>{ const jr=document.getElementById("journalRoot"); if(jr) jr.scrollIntoView({behavior:"smooth",block:"start"}); }, 80);
+    } else {
+      document.querySelector('[data-tab=today]').click();
+      setTimeout(()=>{ const a=document.getElementById("agenda"); if(a) a.scrollIntoView({behavior:"smooth",block:"start"}); }, 80);
+    }
+  }
+
+  function show(){ scrim.hidden = false; input.value = ""; items = []; sel = 0; render(); setTimeout(()=>input.focus(), 20); }
+  function close(){ scrim.hidden = true; }
+
+  if(btn) btn.addEventListener("click", show);
+  input.addEventListener("input", search);
+  scrim.addEventListener("mousedown", e => { if(e.target === scrim) close(); });
+  document.addEventListener("keydown", e => {
+    if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"){ e.preventDefault(); scrim.hidden ? show() : close(); return; }
+    if(scrim.hidden) return;
+    if(e.key === "Escape"){ e.preventDefault(); close(); }
+    else if(e.key === "ArrowDown"){ e.preventDefault(); if(items.length){ sel = (sel+1) % items.length; mark(); } }
+    else if(e.key === "ArrowUp"){ e.preventDefault(); if(items.length){ sel = (sel-1+items.length) % items.length; mark(); } }
+    else if(e.key === "Enter" && items[sel]){ e.preventDefault(); open(items[sel]); }
+  });
+  window.openSearch = show;
 })();
 
 /* ================= PWA ================= */
