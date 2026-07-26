@@ -37,15 +37,19 @@
 </header>
 
 <nav class="tabs" aria-label="Manual sections">
+  <div class="mode-switch" role="tablist" aria-label="Mode">
+    <button class="mode-btn" data-mode="practice" role="tab">Practice</button>
+    <button class="mode-btn" data-mode="work" role="tab">Work</button>
+  </div>
   <div class="tabs-inner">
-    <button class="tab-btn active" data-tab="today">Today</button>
-    <button class="tab-btn" data-tab="learn">01 · How to Learn</button>
-    <button class="tab-btn" data-tab="models">02 · The Models</button>
-    <button class="tab-btn" data-tab="lattice">03 · The Lattice</button>
-    <button class="tab-btn" data-tab="drill">04 · Drill</button>
-    <button class="tab-btn" data-tab="apply">05 · Apply</button>
-    <button class="tab-btn" data-tab="situation">06 · Situation</button>
-    <button class="tab-btn" data-tab="compose">07 · Compose</button>
+    <button class="tab-btn active" data-tab="today" data-group="practice">Today</button>
+    <button class="tab-btn" data-tab="learn" data-group="practice">01 · How to Learn</button>
+    <button class="tab-btn" data-tab="models" data-group="practice">02 · The Models</button>
+    <button class="tab-btn" data-tab="lattice" data-group="practice">03 · The Lattice</button>
+    <button class="tab-btn" data-tab="drill" data-group="practice">04 · Drill</button>
+    <button class="tab-btn" data-tab="apply" data-group="work">05 · Apply</button>
+    <button class="tab-btn" data-tab="situation" data-group="work">06 · Situation</button>
+    <button class="tab-btn" data-tab="compose" data-group="work">07 · Compose</button>
   </div>
   <button class="settings-btn" id="settingsBtn" aria-label="Settings" aria-haspopup="true">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>

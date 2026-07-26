@@ -415,13 +415,38 @@ function saveProgress(p){ sSet("lattice_progress", JSON.stringify(p)); }
 
 /* ================= TABS ================= */
 const tabBtns = document.querySelectorAll(".tab-btn");
-tabBtns.forEach(b => b.addEventListener("click", () => {
+const modeBtns = document.querySelectorAll(".mode-btn");
+
+/* The app does two jobs with different physics — daily practice vs episodic
+   production. The nav says so: two clusters, one visible at a time. */
+function setMode(mode, remember){
+  document.documentElement.dataset.mode = mode;
+  modeBtns.forEach(x => x.classList.toggle("on", x.dataset.mode === mode));
+  tabBtns.forEach(x => { x.hidden = x.dataset.group !== mode; });
+  if(remember !== false) sSet("lattice_mode", mode);
+}
+function activateTab(b){
   tabBtns.forEach(x => x.classList.remove("active"));
   b.classList.add("active");
   document.querySelectorAll("section.panel").forEach(p => p.classList.remove("active"));
-  document.getElementById("panel-" + b.dataset.tab).classList.add("active");
+  const panel = document.getElementById("panel-" + b.dataset.tab);
+  panel.classList.add("active");
+  if(document.documentElement.dataset.mode !== b.dataset.group) setMode(b.dataset.group);
+  /* re-trigger the ensō draw-on for this panel's header glyph */
+  const g = panel.querySelector("h2.sec .enso");
+  if(g){ g.classList.remove("draw"); void g.getBoundingClientRect(); g.classList.add("draw"); }
   window.scrollTo({top:0});
+}
+tabBtns.forEach(b => b.addEventListener("click", () => activateTab(b)));
+modeBtns.forEach(b => b.addEventListener("click", () => {
+  setMode(b.dataset.mode);
+  const active = document.querySelector(".tab-btn.active");
+  if(!active || active.dataset.group !== b.dataset.mode){
+    const first = [...tabBtns].find(x => x.dataset.group === b.dataset.mode);
+    if(first) activateTab(first);
+  }
 }));
+setMode(sGet("lattice_mode") === "work" ? "work" : "practice", false);
 
 /* ================= MODELS LIBRARY ================= */
 const filterRow = document.getElementById("filterRow");
