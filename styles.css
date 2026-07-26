@@ -969,6 +969,9 @@ html[data-theme="dark"] .search-btn{background:rgba(255,255,255,.06);box-shadow:
 .tabs-inner{padding-right:104px}
 
 /* ---------- glass command palette ---------- */
+/* [hidden] must beat the display below — an author display rule outranks the UA
+   [hidden]{display:none}, which otherwise leaves the scrim over the whole app. */
+.pal-scrim[hidden]{display:none !important}
 .pal-scrim{
   position:fixed;inset:0;z-index:200;display:flex;justify-content:center;align-items:flex-start;
   padding:12vh 20px 20px;background:rgba(33,30,25,.28);
