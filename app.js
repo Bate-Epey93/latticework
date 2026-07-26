@@ -467,6 +467,7 @@ function renderModels(){
         ${fieldHtml("Worked example", m.ex)}
         ${fieldHtml("How it gets misused", m.mis)}
         ${fieldHtml("Memory hook", m.hook, "hook")}
+        ${(typeof usageLine === "function" && usageLine(m.id)) ? `<div class="mfield"><div class="fl">Used in your work</div><p class="muse">${usageLine(m.id)}</p></div>` : ""}
         <div class="mfield"><div class="fl">Threads in the lattice</div><div class="mlinks">${linksHtml}</div></div>
       </div>`;
     card.querySelector(".mcard-head").addEventListener("click", () => {
@@ -553,14 +554,28 @@ function chordPath(a,b){
   return `M ${p1.x} ${p1.y} C ${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`;
 }
 const edgeEls = {};
+const edgeRecs = [];
 edges.forEach(([a,b]) => {
   const ln = document.createElementNS(SVGNS,"path");
   ln.setAttribute("d", chordPath(a,b));
   ln.setAttribute("class","lat-edge");
   svg.appendChild(ln);
+  edgeRecs.push({a,b,el:ln});
   (edgeEls[a]=edgeEls[a]||[]).push(ln);
   (edgeEls[b]=edgeEls[b]||[]).push(ln);
 });
+
+/* Lattice depth: a thread is drawn as strongly as you know the two models it
+   joins — your memory rendered as visible density. Called after drill state
+   loads (cardState/progress live in the drill section below). */
+function refreshLatticeDepth(){
+  edgeRecs.forEach(({a,b,el}) => {
+    const known = (cardState(a).box + cardState(b).box) / 2;   // 1..5
+    const t = (known - 1) / 4;                                  // 0..1
+    el.style.opacity = (0.2 + t * 0.65).toFixed(3);
+    el.style.strokeWidth = (0.8 + t * 0.9).toFixed(2);
+  });
+}
 
 let selNode = null;
 const nodeEls = {};
@@ -828,6 +843,8 @@ function buildDeckButtons(){
   mkBtn("Everything", MODELS.map(m=>m.id), false);
   const ut = unlockedThreads();
   mkBtn(`Threads (${ut.length}/${THREAD_KEYS.length})`, ut, false);
+  const bs = blindSpots();
+  if(bs.length) mkBtn(`Blind spots (${bs.length})`, bs, false);
 }
 
 function startDeck(label, ids){
@@ -906,6 +923,7 @@ function renderProgress(){
 
 buildDeckButtons();
 renderProgress();
+refreshLatticeDepth();
 selectNode("fp");
 /* ================= THEME ================= */
 const themeMeta = document.querySelector('meta[name="theme-color"]');
@@ -1147,10 +1165,42 @@ async function runSituation(){
 
 if(sitGo){
   sitGo.addEventListener("click", runSituation);
+  if(sitResults && !sitResults.innerHTML.trim()) sitResults.innerHTML = `<div class="empty-state"><svg class="enso empty-mark" aria-hidden="true"><use href="#e-situation"/></svg>
+    <p>Describe a real situation above. The manual reads it and surfaces the models worth thinking with.</p></div>`;
   sitInput.addEventListener("keydown", e => { if((e.metaKey||e.ctrlKey) && e.key === "Enter") runSituation(); });
   window.addEventListener("online", updateSitMode);
   window.addEventListener("offline", updateSitMode);
   updateSitMode();
+}
+
+/* ================= USAGE LAYER ================= */
+/* Every model a brief or a journal entry reaches for is a retrieval in the wild —
+   a stronger memory event than any flashcard. Count them, and expose the dead zones. */
+function modelUsage(){
+  const use = {};
+  const bump = (id, kind) => { if(!byId[id]) return; (use[id] = use[id] || {briefs:0, decisions:0, total:0}); use[id][kind]++; use[id].total++; };
+  try{
+    JSON.parse(sGet("lattice_briefs")||"[]").forEach(b =>
+      new Set((b.sections||[]).flatMap(sec => sec.models||[])).forEach(id => bump(id,"briefs")));
+  }catch(e){}
+  try{
+    JSON.parse(sGet("lattice_journal")||"[]").forEach(j =>
+      new Set(j.models||[]).forEach(id => bump(id,"decisions")));
+  }catch(e){}
+  return use;
+}
+function usageLine(id){
+  const u = modelUsage()[id];
+  if(!u) return "";
+  const bits = [];
+  if(u.briefs) bits.push(`${u.briefs} brief${u.briefs===1?"":"s"}`);
+  if(u.decisions) bits.push(`${u.decisions} decision${u.decisions===1?"":"s"}`);
+  return bits.join(" · ");
+}
+/* Known on paper, never reached for in real work. */
+function blindSpots(){
+  const use = modelUsage();
+  return MODELS.filter(m => cardState(m.id).box >= 3 && !use[m.id]).map(m => m.id);
 }
 
 /* ================= COMPOSE (Fuzzy-Goal brief) ================= */
@@ -1445,7 +1495,11 @@ if(sitGo){
 
   function renderSaved(){
     const all = briefs();
-    if(!all.length){ cmpSaved.innerHTML=""; return; }
+    if(!all.length){
+      cmpSaved.innerHTML = `<div class="empty-state"><svg class="enso empty-mark" aria-hidden="true"><use href="#e-compose"/></svg>
+        <p>No briefs yet. Name the job and the crossing above — the manual builds the structure, you write the piece.</p></div>`;
+      return;
+    }
     cmpSaved.innerHTML = `<div class="cmp-saved-h">Saved briefs</div>` + all.map(b =>
       `<button class="cmp-saved-row ${b.id===currentId?"on":""}" data-open="${b.id}"><span>${JOBS[b.job].label}${b.keyword?` · ${esc(b.keyword)}`:""}</span><span class="cmp-saved-date">${b.date}</span></button>`).join("");
     cmpSaved.querySelectorAll("[data-open]").forEach(x => x.addEventListener("click", () => {
@@ -1626,9 +1680,27 @@ if(sitGo){
     const ut = unlockedThreads().length;
     const bp = st.blankpage;
     const bpTxt = bp ? ` Last blank-page test: <b>${bp.found}/${bp.total}</b> threads from memory (${bp.date}).` : "";
+    const use = modelUsage();
+    const usedIds = Object.keys(use);
+    const top = usedIds.sort((a,b)=>use[b].total-use[a].total).slice(0,5);
+    const bs = blindSpots();
+    const chip = id => `<button class="use-chip" data-goto="${id}" style="border-color:${DOMAINS[byId[id].d].color}">${esc(byId[id].short)}${use[id]?`<b>${use[id].total}</b>`:""}</button>`;
+    const usageBlock = `
+      <div class="usebox">
+        <div class="dbars-h">Models in your work <span>· counted from briefs and journal entries</span></div>
+        ${top.length ? `<p class="use-sub">Reached for most</p><div class="use-row">${top.map(chip).join("")}</div>`
+                     : `<p class="use-empty">Nothing counted yet. Build a brief or log a decision and the models you actually reach for show up here.</p>`}
+        ${bs.length ? `<p class="use-sub">Blind spots — known on paper, never used <span class="use-n">${bs.length}</span></p><div class="use-row">${bs.slice(0,12).map(chip).join("")}</div>
+          <p class="use-note">Drill these from the <b>Blind spots</b> deck — a model you never reach for is decoration.</p>` : ""}
+      </div>`;
     el.innerHTML = `<div class="ptiles">${tiles}</div>
       <p class="prog-cap">${fresh} new · ${learning} taking root · ${mastered} mastered — the flat part of the curve is where most people quit. ${ut}/${THREAD_KEYS.length} threads unlocked.${bpTxt}</p>
+      ${usageBlock}
       <div class="dbars"><div class="dbars-h">Maturity by domain <span>· average Leitner box, 1–5</span></div>${domains}</div>`;
+    el.querySelectorAll("[data-goto]").forEach(x => x.addEventListener("click", () => {
+      document.querySelector('[data-tab=models]').click();
+      setTimeout(()=>gotoModel(x.dataset.goto),80);
+    }));
   }
 
   /* ================= DECISION JOURNAL ================= */
@@ -1732,7 +1804,8 @@ if(sitGo){
     const items = journal().slice().sort((a,b)=> (a.date<b.date?1:-1));
     list.innerHTML = items.length
       ? `<div class="jlist-h">${items.length} logged</div>` + items.map(entryHtml).join("")
-      : `<div class="jempty">No entries yet. Your first logged decision is the start of your calibration record.</div>`;
+      : `<div class="empty-state"><svg class="enso empty-mark" aria-hidden="true"><use href="#e-journal"/></svg>
+          <p>No entries yet. Your first logged decision is the start of your calibration record.</p></div>`;
   }
 
   /* ================= BACKUP ================= */
@@ -1769,7 +1842,12 @@ if(sitGo){
   }
 
   /* ================= WIRING ================= */
-  window.onProgressChanged = function(){ maybeAwardStreak(); renderStreak(); renderAgenda(); renderProgPanel(); renderJournalBody(); updateBadge(); };
+  window.onProgressChanged = function(){
+    maybeAwardStreak(); renderStreak(); renderAgenda(); renderProgPanel(); renderJournalBody(); updateBadge();
+    if(typeof refreshLatticeDepth === "function") refreshLatticeDepth();
+    if(typeof buildDeckButtons === "function") buildDeckButtons();
+    if(typeof renderModels === "function") renderModels();   // usage line is baked into card HTML
+  };
   window.prefillJournal = function(opts){
     jModels = new Set((opts.models||[]).filter(id => byId[id]));
     renderChips();
