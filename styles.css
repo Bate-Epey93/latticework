@@ -849,3 +849,51 @@ html[data-theme="dark"] .cmp-draft{background:rgba(0,0,0,.22)}
   .cmp-sec,.cmp-ab-box{background:var(--surface)}
 }
 .sp-select{appearance:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px}
+
+/* ---------- compose: insurance overlay ---------- */
+.cmp-toggle{display:flex;align-items:flex-start;gap:9px;font-size:13.5px;color:var(--muted);cursor:pointer;margin:2px 0 14px}
+.cmp-toggle input{accent-color:var(--accent);width:16px;height:16px;margin-top:2px;flex-shrink:0}
+.cmp-ins-chip{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  padding:2px 7px;border-radius:99px;background:var(--accent-soft);color:var(--accent-deep);border:1px solid color-mix(in srgb, var(--accent) 25%, transparent)}
+html[data-theme="dark"] .cmp-ins-chip{background:rgba(217,91,49,.18);color:#E9946E}
+.cmp-zone-check{--zc:#A17E23}
+html[data-theme="dark"] .cmp-zone-check{--zc:#D4AE52}
+.cmp-check{margin:6px 0 0 2px;list-style:none}
+.cmp-check li{position:relative;padding-left:26px;font-size:14px;color:var(--ink);margin-bottom:9px;line-height:1.5;max-width:68ch}
+.cmp-check li::before{content:"";position:absolute;left:0;top:4px;width:13px;height:13px;border-radius:3px;
+  border:1.5px solid color-mix(in srgb, var(--zc) 60%, var(--line))}
+
+/* ---------- reading column for drafts ---------- */
+.cmp-draft{max-width:68ch;line-height:1.62}
+.cmp-move,.cmp-sec h4{max-width:68ch}
+.cmp-ab{max-width:60ch}
+.cmp-print-draft{display:none}
+
+/* ---------- print: the brief as a client-ready leave-behind ---------- */
+@media print{
+  @page{margin:18mm 16mm}
+  html,body{background:#fff !important;color:#000 !important}
+  body::before,.masthead,nav.tabs,footer,.settings-pop,.settings-btn,
+  .cmp-box,.cmp-saved,.cmp-brief-act,.sit-note,.cmp-anchors{display:none !important}
+  main{padding:0 !important;max-width:none !important}
+  section.panel{display:none !important}
+  section.panel#panel-compose{display:block !important}
+  .cmp-sec,.cmp-ab-box,.cmp-headlines,.cmp-oq{
+    background:#fff !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+    border:none !important;border-left:1.5pt solid #444 !important;border-radius:0 !important;
+    padding:6pt 0 6pt 10pt !important;margin:0 0 12pt !important;break-inside:avoid;
+  }
+  .cmp-sec::before,.cmp-ab-box::before{display:none !important}
+  .cmp-brief-meta{font-size:9pt;color:#444 !important;margin-bottom:10pt}
+  .cmp-ab-row{display:block !important}
+  .cmp-sec h4,.cmp-headlines p{font-family:'Shippori Mincho',Georgia,serif;font-size:13pt;color:#000 !important}
+  .cmp-move{font-size:9.5pt;color:#555 !important}
+  .cmp-zone-tag,.cmp-znum,.cmp-hl-h,.cmp-oq-h{font-size:7.5pt;color:#777 !important}
+  .cmp-ins-chip{border:0.5pt solid #999 !important;background:none !important;color:#555 !important}
+  /* drafts: hide the input, print the mirrored text in a measured serif column */
+  .cmp-draft{display:none !important}
+  .cmp-print-draft{display:block !important;font-family:Georgia,'Shippori Mincho',serif;font-size:10.5pt;line-height:1.55;
+    color:#000;max-width:none;white-space:pre-wrap;margin-top:4pt}
+  .cmp-check li{font-size:10pt;color:#000}
+  .cmp-oq li{color:#000 !important;font-size:10pt}
+}

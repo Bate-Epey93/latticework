@@ -1229,22 +1229,78 @@ if(sitGo){
        prompt:"What does success look like in 6–12 months, and the one or two metrics that would prove it?"},
     ]},
   };
-  const ZONE = { A:"Point A", space:"Challenge space", B:"Point B" };
+  const ZONE = { A:"Point A", space:"Challenge space", B:"Point B", check:"Before publish" };
 
-  function skeleton(job){
-    return JOBS[job].slots.map(s => ({ key:s.key, zone:s.zone, heading:s.heading, move:s.move, models:s.models.slice(), draft:"" }));
+  /* Insurance overlay — a reweight on top of any job, not a job of its own.
+     Applied PER SUB-INTENT: an informational piece keeps its clarity skeleton and
+     only gains sourcing discipline; persuasion jobs gain the trust/risk bench. */
+  const INSURANCE = {
+    extra: {
+      info: [
+        {key:"ins_numbers", zone:"space", heading:"Figures — sourced, dated, never guessed", move:"Every rate, premium, or statistic traced to a named source", models:["base","signal"],
+         prompt:"List the figures this piece needs (average premiums, payout rates, frequencies). For each, name the source and year — or mark [verify]. Never estimate a number into existence."},
+        {key:"ins_frame", zone:"space", heading:"Real frequency vs vivid fear", move:"Give the base rate before the scary anecdote", models:["base","loss"],
+         prompt:"What does the data actually say about how often this risk happens? State it plainly so the reader can size the risk instead of feeling it."},
+      ],
+      trans: [
+        {key:"ins_trust", zone:"space", heading:"Solvency and claims proof", move:"Show the costly signals a weak insurer can't fake", models:["signal","proof"],
+         prompt:"Ratings, years in business, claims-paid ratio, complaint index, licensing. Concrete and sourced — mark anything unverified [verify]."},
+        {key:"ins_risk", zone:"space", heading:"Ruin branch and the buffer", move:"Frame the uninsured downside honestly; no scare tactics", models:["loss","mos","ev"],
+         prompt:"Name the loss they can't absorb, and how the coverage caps it. Honest arithmetic — do not amplify fear or imply certainty of loss."},
+        {key:"ins_denial", zone:"space", heading:"'It won't happen to me'", move:"Disarm optimism bias without shaming", models:["diss","base"],
+         prompt:"Give the reader a face-saving path to update — the reason a sensible person postpones this, and what changed."},
+      ],
+      copy: [
+        {key:"ins_bounds", zone:"space", heading:"Honest bounds on the promise", move:"State what's excluded before they find out later", models:["steel","doors"],
+         prompt:"Name the main exclusion, waiting period, or limit in plain words. Being first to say it is the trust move."},
+        {key:"ins_trust", zone:"space", heading:"Proof a weak insurer can't fake", move:"Costly signals over adjectives", models:["signal","proof"],
+         prompt:"Ratings, claims-paid record, licensing, real customer outcomes. Sourced, or marked [verify]."},
+      ],
+      strategy: [
+        {key:"ins_authority", zone:"space", heading:"YMYL authority bar", move:"Meet the higher trust bar this category is held to", models:["signal","base"],
+         prompt:"Who reviews this content, what credentials appear on the page, what sources you cite. YMYL topics are graded harder — plan for it."},
+      ],
+    },
+    checklist: [
+      "No absolute terms — 'all', 'full', 'guaranteed', 'always covered', 'never denied'.",
+      "Every figure, rate, and statistic sourced and dated. Replace every [verify] before publishing.",
+      "Product and rider names match the filed policy names. Nothing invented.",
+      "State or province availability noted wherever coverage or pricing varies.",
+      "Licensing and agent disclosure present if the jurisdiction requires it.",
+      "Exclusions, waiting periods, and limits acknowledged in the body — not buried in a footer.",
+      "No implied guarantee of claim approval, payout amount, or payout timing.",
+      "Testimonials are real; results not implied to be typical unless substantiated.",
+      "Routed to compliance or legal review before publish.",
+    ],
+  };
+
+  function skeleton(job, insurance){
+    const base = JOBS[job].slots.map(s => ({ key:s.key, zone:s.zone, heading:s.heading, move:s.move, models:s.models.slice(), draft:"" }));
+    if(!insurance) return base;
+    const extra = (INSURANCE.extra[job] || []).map(s => ({ key:s.key, zone:s.zone, heading:s.heading, move:s.move, models:s.models.slice(), draft:"", ins:true }));
+    const firstB = base.findIndex(s => s.zone === "B");
+    const at = firstB < 0 ? base.length : firstB;
+    const out = base.slice(0, at).concat(extra, base.slice(at));
+    out.push({ key:"ins_checklist", zone:"check", heading:"Compliance checklist", move:"Verify before publish — this is a prompt, not legal advice",
+               models:[], draft:"", ins:true, checklist: INSURANCE.checklist.slice() });
+    return out;
+  }
+  function slotPrompt(job, key){
+    const j = (JOBS[job].slots.find(x=>x.key===key)) || ((INSURANCE.extra[job]||[]).find(x=>x.key===key));
+    return j ? j.prompt : "";
   }
 
   /* ---- LLM brief (BYO key, mirrors llmMatch) ---- */
   async function llmBrief(intake, key, skel){
     const job = JOBS[intake.job];
-    const slotSpec = skel.map(s => `- ${s.key} [${ZONE[s.zone]}] "${s.heading}" — ${s.move}. Anchoring models: ${s.models.map(id=>byId[id].name).join(", ")}. Writer prompt: ${JOBS[intake.job].slots.find(x=>x.key===s.key).prompt}`).join("\n");
+    const authored = skel.filter(s => s.zone !== "check");
+    const slotSpec = authored.map(s => `- ${s.key} [${ZONE[s.zone]}] "${s.heading}" — ${s.move}. Anchoring models: ${s.models.map(id=>byId[id].name).join(", ")}. Writer prompt: ${slotPrompt(intake.job, s.key)}`).join("\n");
     const schema = {
       type:"object", additionalProperties:false, required:["headlines","sections","openQuestions"],
       properties:{
         headlines:{ type:"array", items:{type:"string"} },
         sections:{ type:"array", items:{ type:"object", additionalProperties:false, required:["key","draft"],
-          properties:{ key:{ type:"string", enum: skel.map(s=>s.key) }, draft:{ type:"string" } } } },
+          properties:{ key:{ type:"string", enum: authored.map(s=>s.key) }, draft:{ type:"string" } } } },
         openQuestions:{ type:"array", items:{type:"string"} }
       }
     };
@@ -1254,7 +1310,14 @@ if(sitGo){
       `Also give 2–3 'headlines' options and a short 'openQuestions' list of things to verify or research. Keep it tight and specific to the keyword and audience. Do not invent statistics; where a figure or claim is needed, say [verify].\n\n` +
       `SECTIONS:\n${slotSpec}\n\n` +
       `POINT A (reader now): ${intake.pointA}\nPOINT B (goal + CTA): ${intake.pointB}` +
-      (intake.awareness?`\nReader awareness: ${intake.awareness}`:"") + (intake.keyword?`\nTarget keyword: ${intake.keyword}`:"") + (intake.tone?`\nTone: ${intake.tone}`:"");
+      (intake.awareness?`\nReader awareness: ${intake.awareness}`:"") + (intake.keyword?`\nTarget keyword: ${intake.keyword}`:"") + (intake.tone?`\nTone: ${intake.tone}`:"") +
+      (intake.insurance ? "\n\nINSURANCE RULES (this is regulated, YMYL content — follow strictly):\n" +
+        "- Never write an absolute term: no 'all', 'full', 'guaranteed', 'always covered', 'never denied', 'complete protection'.\n" +
+        "- Never invent a figure, rate, premium, statistic, rating, or claims record. Where one is needed write [verify].\n" +
+        "- Do not amplify fear. State risk in plain, proportionate terms; give a base rate rather than a vivid worst case.\n" +
+        "- Do not imply any guarantee of claim approval, payout amount, or timing.\n" +
+        "- Name exclusions and limits openly rather than omitting them.\n" +
+        "- Add anything a compliance reviewer must check to openQuestions." : "");
     return callClaude({ system, user:`Write the ${job.label} brief.`, schema, maxTokens: 2200, effort: "medium" }, key);
   }
 
@@ -1263,7 +1326,7 @@ if(sitGo){
   const saveBriefs = b => jset("lattice_briefs", b);
 
   /* ---- render ---- */
-  const cmpJob=$("cmpJob"), cmpA=$("cmpA"), cmpB=$("cmpB"), cmpAware=$("cmpAware"), cmpKw=$("cmpKw"), cmpTone=$("cmpTone"),
+  const cmpJob=$("cmpJob"), cmpA=$("cmpA"), cmpB=$("cmpB"), cmpAware=$("cmpAware"), cmpKw=$("cmpKw"), cmpTone=$("cmpTone"), cmpIns=$("cmpIns"),
         cmpGo=$("cmpGo"), cmpMode=$("cmpMode"), cmpResults=$("cmpResults"), cmpSaved=$("cmpSaved");
   let currentId = null;
 
@@ -1276,24 +1339,42 @@ if(sitGo){
   function briefHtml(b){
     const headlines = (b.headlines&&b.headlines.length)
       ? `<div class="cmp-headlines"><div class="cmp-hl-h">Headline options</div>${b.headlines.map(h=>`<p>${esc(h)}</p>`).join("")}</div>` : "";
-    const secs = b.sections.map((s,i) => `
-      <div class="cmp-sec cmp-zone-${s.zone}">
+    let n = 0;
+    const secs = b.sections.map(s => {
+      if(s.zone === "check"){
+        return `
+      <div class="cmp-sec cmp-zone-check">
         <div class="cmp-sec-head">
-          <span class="cmp-znum">${i+1}</span>
+          <span class="cmp-znum">&#10003;</span>
           <span class="cmp-zone-tag">${ZONE[s.zone]}</span>
+        </div>
+        <h4>${esc(s.heading)}</h4>
+        <p class="cmp-move">${esc(s.move)}</p>
+        <ul class="cmp-check">${(s.checklist||[]).map(c=>`<li>${esc(c)}</li>`).join("")}</ul>
+      </div>`;
+      }
+      n++;
+      return `
+      <div class="cmp-sec cmp-zone-${s.zone}${s.ins?" cmp-ins":""}">
+        <div class="cmp-sec-head">
+          <span class="cmp-znum">${n}</span>
+          <span class="cmp-zone-tag">${ZONE[s.zone]}</span>
+          ${s.ins?`<span class="cmp-ins-chip">insurance</span>`:""}
           <div class="cmp-anchors">${s.models.map(anchor).join("")}</div>
         </div>
         <h4>${esc(s.heading)}</h4>
         <p class="cmp-move">${esc(s.move)}</p>
-        <textarea class="cmp-draft" data-key="${s.key}" rows="3" placeholder="${esc(JOBS[b.job].slots.find(x=>x.key===s.key).prompt)}">${esc(s.draft)}</textarea>
-      </div>`).join("");
+        <textarea class="cmp-draft" data-key="${s.key}" rows="3" placeholder="${esc(slotPrompt(b.job, s.key))}">${esc(s.draft)}</textarea>
+        <div class="cmp-print-draft" aria-hidden="true"></div>
+      </div>`;
+    }).join("");
     const oq = (b.openQuestions&&b.openQuestions.length)
       ? `<div class="cmp-oq"><div class="cmp-oq-h">Verify / open questions</div><ul>${b.openQuestions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>` : "";
     return `
       <div class="cmp-brief" data-id="${b.id}">
         <div class="cmp-brief-top">
-          <div class="cmp-brief-meta">${JOBS[b.job].label}${b.keyword?` · <b>${esc(b.keyword)}</b>`:""} · ${b.built && b.built!=="offline" ? esc(modelLabel(b.built))+" draft" : "skeleton"}</div>
-          <div class="cmp-brief-act"><button class="mlink cmp-copy">Copy brief</button><button class="mlink cmp-del">Delete</button></div>
+          <div class="cmp-brief-meta">${JOBS[b.job].label}${b.insurance?` · <span class="cmp-ins-chip">insurance</span>`:""}${b.keyword?` · <b>${esc(b.keyword)}</b>`:""} · ${b.built && b.built!=="offline" ? esc(modelLabel(b.built))+" draft" : "skeleton"}</div>
+          <div class="cmp-brief-act"><button class="mlink cmp-copy">Copy brief</button><button class="mlink cmp-print">Print</button><button class="mlink cmp-del">Delete</button></div>
         </div>
         <div class="cmp-ab-row">
           <div class="cmp-ab-box cmp-zone-A"><span class="cmp-zone-tag">Point A — reader now</span><p contenteditable="true" class="cmp-ab" data-ab="pointA">${esc(b.pointA)}</p></div>
@@ -1315,12 +1396,23 @@ if(sitGo){
       document.querySelector('[data-tab=models]').click(); setTimeout(()=>gotoModel(x.dataset.goto),80);
     }));
     root.querySelector(".cmp-copy").addEventListener("click", e => { copyBrief(b); const t=e.target; const o=t.textContent; t.textContent="Copied ✓"; setTimeout(()=>t.textContent=o,1400); });
+    root.querySelector(".cmp-print").addEventListener("click", () => { syncPrintDrafts(); window.print(); });
     root.querySelector(".cmp-del").addEventListener("click", () => {
       saveBriefs(briefs().filter(x=>x.id!==b.id));
       if(currentId===b.id){ currentId=null; cmpResults.innerHTML=""; }
       renderSaved();
     });
   }
+
+  /* textareas print clipped at their box height — mirror their text into a div
+     that only exists in print, so a long draft flows onto the page. */
+  function syncPrintDrafts(){
+    document.querySelectorAll("#cmpResults .cmp-sec").forEach(sec => {
+      const ta = sec.querySelector(".cmp-draft"), out = sec.querySelector(".cmp-print-draft");
+      if(ta && out) out.textContent = ta.value || "";
+    });
+  }
+  window.addEventListener("beforeprint", syncPrintDrafts);
 
   function persist(b){ const all=briefs(); const i=all.findIndex(x=>x.id===b.id); if(i>=0){ all[i]=b; saveBriefs(all); } }
 
@@ -1332,11 +1424,16 @@ if(sitGo){
     md += `**Point A (reader now):** ${b.pointA}\n\n**Point B (goal + CTA):** ${b.pointB}\n\n`;
     if(b.headlines&&b.headlines.length) md += `## Headline options\n` + b.headlines.map(h=>`- ${h}`).join("\n") + "\n\n";
     md += `## Outline\n\n`;
-    b.sections.forEach((s,i) => {
-      md += `### ${i+1}. ${s.heading} — via ${s.models.map(id=>byId[id].name).join(", ")}\n`;
+    let n = 0;
+    b.sections.forEach(s => {
+      if(s.zone === "check") return;
+      n++;
+      md += `### ${n}. ${s.heading} — via ${s.models.map(id=>byId[id].name).join(", ")}\n`;
       md += `_${s.move}_\n\n${s.draft||""}\n\n`;
     });
-    if(b.openQuestions&&b.openQuestions.length) md += `## Verify / open questions\n` + b.openQuestions.map(q=>`- ${q}`).join("\n") + "\n";
+    if(b.openQuestions&&b.openQuestions.length) md += `## Verify / open questions\n` + b.openQuestions.map(q=>`- ${q}`).join("\n") + "\n\n";
+    const chk = b.sections.find(s => s.zone === "check");
+    if(chk) md += `## ${chk.heading}\n_${chk.move}_\n\n` + (chk.checklist||[]).map(c=>`- [ ] ${c}`).join("\n") + "\n";
     return md;
   }
   function copyBrief(b){
@@ -1359,8 +1456,9 @@ if(sitGo){
   async function build(){
     const pointA=(cmpA.value||"").trim(), pointB=(cmpB.value||"").trim();
     if(pointA.length<6 || pointB.length<6){ (pointA.length<6?cmpA:cmpB).focus(); return; }
-    const intake = { job:cmpJob.value, pointA, pointB, awareness:cmpAware.value, keyword:(cmpKw.value||"").trim(), tone:(cmpTone.value||"").trim() };
-    const skel = skeleton(intake.job);
+    const insurance = !!(cmpIns && cmpIns.checked);
+    const intake = { job:cmpJob.value, pointA, pointB, awareness:cmpAware.value, keyword:(cmpKw.value||"").trim(), tone:(cmpTone.value||"").trim(), insurance };
+    const skel = skeleton(intake.job, insurance);
     const key = getApiKey();
     let headlines=[], openQuestions=[], built="offline", errNote="";
     if(key && navigator.onLine){
@@ -1379,7 +1477,7 @@ if(sitGo){
       }finally{ cmpGo.disabled = false; }
     }
     const b = { id:"b"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date:ymd(),
-      job:intake.job, pointA, pointB, awareness:intake.awareness, keyword:intake.keyword, tone:intake.tone,
+      job:intake.job, insurance, pointA, pointB, awareness:intake.awareness, keyword:intake.keyword, tone:intake.tone,
       headlines, openQuestions, built, sections:skel, source:"manual" };
     const all = briefs(); all.unshift(b); saveBriefs(all);
     showBrief(b); renderSaved();
