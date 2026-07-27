@@ -8,7 +8,8 @@ const DOMAINS = {
   mkt:{name:"Marketing", color:"var(--d-mkt)", hex:"#B65E2E"},
   psy:{name:"Psychology", color:"var(--d-psy)", hex:"#7A5CA3"},
   com:{name:"Communication", color:"var(--d-com)", hex:"#22786B"},
-  dec:{name:"Decision-Making", color:"var(--d-dec)", hex:"#A17E23"}
+  dec:{name:"Decision-Making", color:"var(--d-dec)", hex:"#A17E23"},
+  emo:{name:"Inner Weather", color:"var(--d-emo)", hex:"#A8556B"}
 };
 
 /* ================= MODELS ================= */
@@ -399,7 +400,141 @@ const MODELS = [
  hook:"Sitting through a terrible film 'to get your money's worth' — paying a second price (two hours) to honor the first (the ticket).",
  links:["oc","loss","diss","coc"],
  drill:{q:"State the sunk cost rule, the clean test, and the over-correction to avoid.",
- a:"Past costs are identical across all options → only <b>future</b> costs/benefits count. Test: <b>'knowing what I know now, would I start this today?'</b> Over-correction: serial quitting — compounding projects look dead in the flat middle; distinguish 'no future value' from 'value not visible yet'."}}
+ a:"Past costs are identical across all options → only <b>future</b> costs/benefits count. Test: <b>'knowing what I know now, would I start this today?'</b> Over-correction: serial quitting — compounding projects look dead in the flat middle; distinguish 'no future value' from 'value not visible yet'."}},
+/* ---------- CORE (added) ---------- */
+{id:"neg", d:"core", code:"CORE·07", name:"Via Negativa", short:"Via Negativa",
+ essence:"Improve by removing, not adding.",
+ mech:"Subtraction is more reliable than addition because we know what harms with far more confidence than what helps. Removing a bad habit, a draining client, or a throat-clearing paragraph has a knowable effect; adding a new one is a bet. What survives removal is what was load-bearing, and negative knowledge — what doesn't work — ages better than positive knowledge.",
+ ex:"An article improves faster by cutting three warm-up paragraphs than by adding a section. Same with the roster: dropping the client who eats twenty hours a month does more for the year than landing a new one, and you can predict the result.",
+ mis:"Cutting indiscriminately until you remove the load-bearing wall — or using it as licence never to build anything. Removal is a scalpel, not a policy.",
+ hook:"The sculptor's answer: chip away everything that isn't the statue.",
+ links:["inv","yagni","pareto","ttc"],
+ drill:{q:"What is via negativa, and why is subtraction more reliable than addition?",
+ a:"Improve by <b>removing</b> rather than adding. More reliable because we know what harms with more confidence than what helps — negative knowledge ages better, and what survives removal is what was actually load-bearing."}},
+
+{id:"good", d:"core", code:"CORE·08", name:"Goodhart's Law", short:"Goodhart",
+ essence:"When a measure becomes a target, it stops measuring.",
+ mech:"Every metric is a proxy, and a proxy holds only while nobody is optimizing it. Make it a target and behaviour reshapes to hit the number while quietly abandoning the thing the number stood for. This is structural rather than moral — the gap between proxy and goal is where all the gaming lives, and the harder the incentive presses, the faster that gap opens.",
+ ex:"Word count as a quality proxy: bonus the count and you get padded articles that rank worse (the client team in the Incentives card). Same story for 'content velocity', domain-authority chasing, and any KPI a client falls in love with — the metric was a map of quality, and targeting it navigates the map instead of the ground.",
+ mis:"Concluding that measurement is useless. The fix is several imperfect measures, rotated, with judgment kept in the loop — not flying blind.",
+ hook:"Colonial Hanoi paid a bounty per rat tail. Citizens started farming rats.",
+ links:["inc","map","funnel"],
+ drill:{q:"State Goodhart's law and the practical response to it.",
+ a:"<b>When a measure becomes a target, it ceases to be a good measure</b> — behaviour optimizes the proxy and drops the goal. Response: use several imperfect measures, rotate them, and keep human judgment in the loop. Never one hard-targeted KPI."}},
+
+/* ---------- MARKETING (added) ---------- */
+{id:"recip", d:"mkt", code:"MKT·06", name:"Reciprocity", short:"Reciprocity",
+ essence:"Give first; the debt is felt before it is reasoned.",
+ mech:"Receiving something unearned creates a felt obligation that arrives ahead of any analysis — Cialdini's most reliable lever. Its strength scales with how personalized, unexpected, and genuinely useful the gift is, not with what it cost. In content marketing the give IS the product: the free audit, the guide that solves the problem before any pitch.",
+ ex:"The unpaid blog audit before the Amanah interview stacked reciprocity on costly signaling in one act. A lead magnet that actually solves the reader's problem earns the reply; one that withholds the answer to force a call spends the goodwill it was meant to build.",
+ mis:"Transactional giving. A 'gift' with an invoice attached reads as manipulation and reverses the effect — give what stands on its own as useful even if nothing comes back.",
+ hook:"The free sample counter: nobody makes you take it, and almost nobody who takes one walks away.",
+ links:["signal","proof","jtbd"],
+ drill:{q:"What makes a reciprocal gift work, and what kills it?",
+ a:"Works when it is <b>personalized, unexpected, and genuinely useful</b> — the felt obligation precedes reasoning, and cost matters less than fit. Killed by transactional giving: a gift with strings visible reads as manipulation and reverses the effect."}},
+
+{id:"fear", d:"mkt", code:"MKT·07", name:"Fear & Efficacy", short:"Fear+Efficacy",
+ essence:"Fear only moves people when paired with a doable action.",
+ mech:"Protection motivation theory: a threat message routes down one of two paths. If the reader believes the threat is real AND that a specific action within their power averts it, they act. If the threat lands but efficacy is missing, they defend themselves psychologically instead — denial, avoidance, 'it won't happen to me'. Fear without a doable next step manufactures the exact resistance you were fighting.",
+ ex:"Insurance copy that stacks worst-case scenarios and closes with 'contact us for a consultation' builds the denial wall. The version that names one honest risk and offers a concrete two-minute quote gets the click. The fear didn't change — the efficacy did.",
+ mis:"Reading it as licence to amplify fear as long as a CTA follows. Overshoot the threat and defensive processing kicks in regardless of the CTA — and in regulated categories, overshooting is a compliance problem as well as a conversion one.",
+ hook:"Scare campaigns moved smokers only where a quit line sat on the same page. Alone, the tar-lung photo just made people look away.",
+ links:["loss","diss","aud","proof"],
+ drill:{q:"Why do fear appeals backfire, and what is the missing ingredient?",
+ a:"Because a threat without <b>efficacy</b> — a specific action the reader believes they can take — triggers defensive processing: denial and avoidance instead of action. Pair every honest risk with one concrete, doable next step; do not amplify the fear to compensate."}},
+
+/* ---------- PSYCHOLOGY (added) ---------- */
+{id:"avail", d:"psy", code:"PSY·06", name:"Availability Heuristic", short:"Availability",
+ essence:"We judge likelihood by what comes to mind easily.",
+ mech:"The mind quietly substitutes ease of recall for actual frequency. Vivid, recent, emotionally charged, and heavily covered events feel common; statistically common but dull ones feel rare. The bias is self-feeding: the more memorable a risk, the more it gets covered, and the more it is covered, the more available it becomes.",
+ ex:"Shark attacks over ladder falls, plane crashes over heart disease. In insurance marketing this IS the customer's working model — one dramatic denied-claim story on a forum outweighs the payout statistics, and the job is to supply the base rate without dismissing the story.",
+ mis:"Assuming availability is always wrong. Sometimes ease of recall genuinely tracks reality — a recent local event can be real evidence. Ask whether the vividness came from frequency or from coverage.",
+ hook:"After the shark documentary, the ocean looks different. The ocean did not change.",
+ links:["base","loss","proof","prem"],
+ drill:{q:"State the availability heuristic and the one diagnostic question it demands.",
+ a:"We estimate probability by <b>how easily an example comes to mind</b>, so vivid and well-covered risks feel frequent. Diagnostic: did this feel common because it happens often, or because it is memorable and heavily covered? Then go find the base rate."}},
+
+{id:"commit", d:"psy", code:"PSY·07", name:"Commitment & Consistency", short:"Commitment",
+ essence:"A small yes makes the next yes far more likely.",
+ mech:"People act to stay consistent with a prior commitment, especially one that was public, effortful, and freely chosen. The engine is self-image: having done X once, 'I am the kind of person who does X' becomes the cheapest story to maintain. This is why micro-yes ladders work, and why the first small step matters more than the size of the eventual ask.",
+ ex:"The quiz funnel that asks three easy questions before the email field converts better than the bare form — each answer is a small commitment. Your own drill streak runs on the same engine: the counter is not a reward, it is a commitment you would rather not break.",
+ mis:"Manufacturing commitments the person did not freely choose — pressured yes-ladders create compliance that collapses at the first exit. And self-directed: consistency with a past commitment is exactly what sunk cost feels like from the inside.",
+ hook:"Foot in the door: the tiny 'would you display this small sign?' is what makes the huge billboard request work months later.",
+ links:["diss","sunk","funnel","doors"],
+ drill:{q:"What makes a commitment stick, and where does it turn into a trap?",
+ a:"Sticks when it is <b>public, effortful, and freely chosen</b> — the person defends their self-image by staying consistent. Turns into a trap when the commitment was coerced (compliance collapses) or when your own consistency with a past choice is really sunk cost wearing a nicer name."}},
+
+/* ---------- DECISION-MAKING (added) ---------- */
+{id:"circ", d:"dec", code:"DEC·09", name:"Circle of Competence", short:"Circle of Competence",
+ essence:"Know exactly where the edge of your knowledge runs.",
+ mech:"Munger's rule: the size of your circle matters far less than knowing precisely where its boundary sits. Inside it your judgment beats the base rate; a step outside and you are paying to guess while feeling equally confident. The boundary is found by tracking where your predictions have actually been calibrated — not by how interested or fluent you feel.",
+ ex:"Bilingual FR-EN content strategy for regulated Canadian markets sits inside the circle — years of calibrated feedback. Enterprise-scale technical SEO auditing is adjacent but outside; the honest moves are to price it as learning, partner, or decline. EEAT is this model wearing Google's clothes: write inside demonstrable competence.",
+ mis:"Treating the circle as fixed. It grows, but only through deliberate work with real feedback — and it shrinks silently in any field that keeps moving while you don't.",
+ hook:"'I'm no genius, but I'm smart in spots — and I stay around those spots.' The fence matters more than the acreage.",
+ links:["map","base","pos","coc"],
+ drill:{q:"What matters more than the size of your circle of competence, and how do you locate its edge?",
+ a:"Knowing <b>where the boundary is</b>. Locate it by where your predictions have been calibrated against real feedback — not by confidence or interest, which feel identical on both sides of the line. Outside it, you are paying to guess."}},
+
+{id:"surv", d:"dec", code:"DEC·10", name:"Survivorship Bias", short:"Survivorship",
+ essence:"The failures are missing from the sample you're looking at.",
+ mech:"Any dataset assembled from what survived has silently deleted what didn't, so patterns drawn from winners are unreliable — the same trait may be just as common in the graveyard. The correction is mechanical: before generalizing from success, ask what the failures did, and whether you are even able to see them.",
+ ex:"Reverse-engineering the top ten ranking pages is a survivor sample — the hundreds of near-identical pages that never ranked are invisible, so 'they all do X' may mean nothing at all. Same trap in founder advice, case studies, and every 'what top brands do' listicle.",
+ mis:"Using it to dismiss all learning from success. Survivors do carry information — you just cannot separate signal from noise without some idea of how many attempts there were.",
+ hook:"Wald's bombers: armour the places the returning planes were NOT hit. The holes he couldn't see were on the planes that never came back.",
+ links:["base","proof","hyp"],
+ drill:{q:"State survivorship bias and the question that corrects it.",
+ a:"Samples built from what survived have deleted the failures, so traits shared by winners may be equally common among losers. Correction: <b>where is the graveyard, and can I see it?</b> Compare against the failures, or against the base of all attempts."}},
+
+{id:"regm", d:"dec", code:"DEC·11", name:"Regression to the Mean", short:"Regression",
+ essence:"Extremes are followed by less extreme — no cause required.",
+ mech:"When an outcome mixes skill and luck, an extreme result is usually extreme luck sitting on top of average skill, so the next result drifts back toward the average on its own. The trap is narrative: we insert a cause into the drift, and whatever we did after the peak takes the blame while whatever we did after the trough takes the credit.",
+ ex:"The post that went viral, then three that didn't — that drop is arithmetic, not decline. Same for the traffic spike after a campaign and the slump that follows. Read it as a trend and you will kill what was working and reward what wasn't.",
+ mis:"Assuming everything regresses. Genuine skill gains and structural changes don't — regression applies to the luck component, so the real question is how much of this result was luck.",
+ hook:"Praise the pilot after a great landing and the next is worse; shout after a bad one and the next is better. The shouting did nothing.",
+ links:["base","ev","comp"],
+ drill:{q:"Why does performance drop after an exceptional result, and what mistake follows?",
+ a:"Because an extreme outcome is usually extreme <b>luck</b> plus average skill, and luck doesn't repeat — the next result drifts toward the mean by itself. The mistake is inserting a cause into that drift: blaming or crediting whatever you happened to change."}},
+
+/* ---------- INNER WEATHER ---------- */
+{id:"edata", d:"emo", code:"EMO·01", name:"Emotions as Data", short:"Emotions as Data",
+ essence:"A feeling is a readout, not an order.",
+ mech:"An emotion is a fast, compressed appraisal — the mind's summary of your situation measured against your needs, delivered as a body state before any of it reaches words. That makes it information worth reading and a poor instruction to obey: the appraisal can be right about the need and wrong about the cause, or accurate for a past situation and stale for this one. Read the gauge, then decide separately.",
+ ex:"The flash of resentment at a curt email is not a verdict on the sender — it is a readout that some need (respect, clarity, rest) is unmet. Treated as data it produces a question worth asking. Treated as an order it produces the reply you delete an hour later.",
+ mis:"The cold version — using 'it's only data' to avoid feeling anything. Suppression degrades both the reading and the decision; the model asks you to feel it accurately, not to skip it.",
+ hook:"The fuel light is information about the tank, not a command to swerve.",
+ links:["map","nvc","coc","lab"],
+ drill:{q:"If a feeling is data, what exactly is it data ABOUT — and what is it not?",
+ a:"It is a compressed appraisal of your <b>situation against your needs</b>, arriving as a body state before words. It is not a verdict on the cause and not an instruction to act — the reading can be right about the need and wrong about who or what triggered it."}},
+
+{id:"lab", d:"emo", code:"EMO·02", name:"Affect Labeling", short:"Affect Labeling",
+ essence:"Name the feeling precisely and it loosens its grip.",
+ mech:"Putting a specific word to an emotional state measurably lowers its intensity — labeling brings the deliberate system online and the raw signal drops. Precision is what does the work: 'bad' changes nothing, while 'slighted', 'unmoored', or 'braced' gives the state edges, and a state with edges can be reasoned about. Emotional granularity is trainable, and people who have more of it regulate better.",
+ ex:"'I'm anxious about the move' can sit there for months. Pushed for precision — 'I'm afraid of arriving without a network and having no one to prove myself to' — it becomes a problem with parts, two of which are actionable this month. As a poet you already own the vocabulary; the discipline is aiming it inward.",
+ mis:"Labeling as a substitute for the conversation or the change. Naming turns the volume down so you can act — stopping at the name is where insight becomes an alibi.",
+ hook:"Rubber-duck debugging for feelings: the fog becomes one sentence, and a sentence can be answered.",
+ links:["duck","nvc","cok","edata"],
+ drill:{q:"What does affect labeling do, and what makes the difference between a label that works and one that doesn't?",
+ a:"Naming a state precisely <b>reduces its intensity</b> by engaging the deliberate system. Precision is the active ingredient — 'bad' does nothing, a specific word gives the state edges you can reason about. Granularity is trainable, and it predicts better regulation."}},
+
+{id:"fcast", d:"emo", code:"EMO·03", name:"Affective Forecasting", short:"Affective Forecasting",
+ essence:"You overestimate how long any feeling will last.",
+ mech:"We predict the direction of future feelings well and their intensity and duration badly — the impact bias. Two mechanisms drive it: we focus on the one feature that changes and ignore everything else that will still fill the day, and we forget how thoroughly we adapt. Both the dreaded outcome and the longed-for one fade back toward baseline far faster than the forecast claims.",
+ ex:"The imagined ache of the risky repositioning is louder than the lived version, and the imagined relief of the safe choice is much shorter. This is the machinery underneath 10/10/10 — the ten-minute scream is loud because the forecast is broken, not because the stakes are.",
+ mis:"Flattening it into 'you'll adapt to anything'. Adaptation is strong for events and weak for conditions — chronic pain, noise, a lost autonomy, an unresolved relationship. Check which one you're forecasting.",
+ hook:"Everyone is certain the lottery win and the lost job will define the rest of their life. Ask them a year later.",
+ links:["reg","loss","base","comp"],
+ drill:{q:"What do we get wrong when predicting future feelings, and where does the correction NOT apply?",
+ a:"Direction is predicted well; <b>intensity and duration</b> are overestimated — we focus on the one changing feature and forget adaptation. Does not apply to ongoing <b>conditions</b> (chronic pain, noise, lost autonomy), which we adapt to poorly."}},
+
+{id:"peak", d:"emo", code:"EMO·04", name:"Decide Off the Peak", short:"Off the Peak",
+ essence:"Judgment is state-dependent — wait out the wave on one-way doors.",
+ mech:"Judgment is a function of state as much as of information: hungry, angry, lonely, tired, or mid-wave, the same facts produce a different decision, and the shift is invisible from the inside. The rule pairs with reversibility — ride the wave on two-way doors, where speed is worth more than calibration, and wait it out on one-way doors, where the mistake does not come back.",
+ ex:"The resignation email, the burnt bridge, the public statement under your own name — all of them feel reversible at the peak and are permanent afterwards. Your own version of the rule: if the decision is irreversible and the emotional wave has not completed, the correct move is to wait, because clarity is downstream of the wave, not upstream.",
+ mis:"Waiting forever — using 'not the right state' as a permanent veto on hard choices. The trigger is the wave completing, not the absence of all feeling, and some decisions carry deadlines that outrank your state.",
+ hook:"HALT — hungry, angry, lonely, tired. Four states in which nobody should sign anything.",
+ links:["doors","reg","ev","edata"],
+ drill:{q:"State the off-the-peak rule and how it interacts with reversibility.",
+ a:"Judgment is <b>state-dependent</b> and the shift is invisible from inside, so check your state as well as your information. Two-way doors: decide in the wave, speed beats calibration. One-way doors: wait for the wave to complete — clarity is downstream of it."}}
 ];
 
 const byId = {}; MODELS.forEach(m => byId[m.id] = m);
@@ -464,7 +599,7 @@ function buildFilters(){
     filterRow.appendChild(b);
   };
   filterRow.innerHTML = "";
-  mk("all","All 38",null);
+  mk("all","All " + MODELS.length,null);
   Object.entries(DOMAINS).forEach(([k,d]) => mk(k,d.name,d.color));
 }
 
@@ -707,7 +842,54 @@ function threadNote(a,b){
     "doors|mos":"one-way doors demand the widest margins",
     "doors|reg":"regret at eighty attaches to unopened doors, especially the two-way ones",
     "ev|mos":"the margin of safety is insurance against your own EV estimates",
-    "doors|loss":"loss aversion makes two-way doors look like one-way doors"
+    "doors|loss":"loss aversion makes two-way doors look like one-way doors",
+    "inv|neg":"inversion finds what to remove; via negativa is the removing",
+    "neg|yagni":"YAGNI is via negativa applied before the thing is ever built",
+    "neg|pareto":"the trivial many are the subtraction list",
+    "neg|ttc":"removing anything that isn't the constraint changes nothing — subtract there",
+    "good|inc":"Goodhart is what incentives do to a metric once it becomes the target",
+    "good|map":"a targeted metric is a map being navigated instead of the ground",
+    "funnel|good":"optimize one funnel stage as a target and it stops reporting the funnel",
+    "recip|signal":"an unpaid gift is a costly signal that also creates obligation",
+    "proof|recip":"a gift that helped publicly becomes proof as well as debt",
+    "jtbd|recip":"give progress on the job first; the ask comes after the progress is felt",
+    "fear|loss":"fear appeals are loss framing with the efficacy step attached",
+    "diss|fear":"threat without efficacy resolves as denial — dissonance choosing the cheap path",
+    "aud|fear":"efficacy is audience-first: the action must be doable by THIS reader",
+    "fear|proof":"proof is what makes the averting action believable enough to take",
+    "avail|base":"availability is the disease; the base rate is the cure",
+    "avail|loss":"the vivid loss is the one that comes to mind, so it feels twice as likely too",
+    "avail|proof":"one vivid testimonial outweighs a hundred quiet ones — that's availability, not evidence",
+    "avail|prem":"the pre-mortem must reach past the failures that come to mind easily",
+    "commit|diss":"consistency is dissonance resolved forward instead of backward",
+    "commit|sunk":"sunk cost is commitment and consistency pointed at your own past",
+    "commit|funnel":"a micro-yes ladder is a funnel built out of small commitments",
+    "commit|doors":"each small yes quietly narrows the door you can still walk back through",
+    "circ|map":"the circle's edge is where your map stops matching the territory",
+    "base|circ":"outside the circle you have no calibrated view — use the base rate",
+    "circ|pos":"position inside the circle; a slot you can't actually hold isn't yours",
+    "circ|coc":"one is what you can control, the other what you can competently judge",
+    "base|surv":"the base rate includes the failures the survivor sample deleted",
+    "proof|surv":"testimonials are a survivor sample by construction",
+    "hyp|surv":"a hypothesis tested only on winners can't be falsified",
+    "base|regm":"regression IS the base rate pulling an outlier back",
+    "ev|regm":"expected value already assumes the luck averages out; regression is that happening",
+    "comp|regm":"compounding is trend, regression is noise returning — don't confuse them",
+    "edata|map":"a feeling is a map of the situation, and maps go stale",
+    "edata|nvc":"NVC's feeling-and-need steps are this model turned into a script",
+    "coc|edata":"the feeling is inside the circle; what triggered it usually isn't",
+    "edata|lab":"reading the gauge requires naming what it says",
+    "duck|lab":"both work by forcing a vague internal state into one precise sentence",
+    "lab|nvc":"step two of NVC is affect labeling done out loud",
+    "cok|lab":"vague words hide the state from you the way jargon hides ideas from a reader",
+    "fcast|reg":"10/10/10 works because the ten-minute forecast is the broken one",
+    "fcast|loss":"the dreaded loss is forecast as permanent; it isn't",
+    "base|fcast":"ask how people like you actually felt a year later — the outside view on feelings",
+    "comp|fcast":"adaptation is compounding running against your forecast",
+    "doors|peak":"check the hinge and your state before deciding how long to stand there",
+    "peak|reg":"the ten-minute self is the one at the peak — let the other two vote",
+    "ev|peak":"at the peak your probabilities are state-distorted, so the EV is too",
+    "edata|peak":"read the wave as data, then wait for it to finish before the one-way call"
   };
   return notes[pair] || "conceptually adjacent — articulate the link yourself; that articulation is the learning";
 }
@@ -844,6 +1026,20 @@ function threadUnlocked(key){
   return cardState(a).box >= 2 && cardState(b).box >= 2;
 }
 function unlockedThreads(){ return THREAD_KEYS.filter(threadUnlocked); }
+/* Threads unlock in clumps as models mature, and 100 of them landing due on the same
+   day is a wall, not a schedule. Give each a stable first due date spread over two
+   weeks, written once when it first unlocks. */
+function threadHash(k){ let h=0; for(let i=0;i<k.length;i++){ h=(h*31 + k.charCodeAt(i))|0; } return Math.abs(h); }
+function seedThreads(){
+  let wrote = false;
+  unlockedThreads().forEach(k => {
+    if(progress[k]) return;
+    progress[k] = { box:1, due: Date.now() + (threadHash(k) % 14) * DAY };
+    wrote = true;
+  });
+  if(wrote) saveProgress(progress);
+  return wrote;
+}
 function dueCards(){
   const now = Date.now();
   return MODELS.filter(m => cardState(m.id).due <= now).map(m=>m.id)
@@ -852,6 +1048,7 @@ function dueCards(){
 function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
 
 function buildDeckButtons(){
+  seedThreads();
   drillSetup.innerHTML = "";
   const due = dueCards().length;
   const mkBtn = (label, ids, primary) => {
@@ -937,6 +1134,7 @@ document.querySelectorAll(".grade-row .btn").forEach(b => b.addEventListener("cl
 }));
 
 function renderProgress(){
+  seedThreads();
   const counts = [0,0,0,0,0];
   MODELS.forEach(m => counts[cardState(m.id).box - 1]++);
   unlockedThreads().forEach(k => counts[cardState(k).box - 1]++);
@@ -1228,6 +1426,28 @@ function blindSpots(){
   return MODELS.filter(m => cardState(m.id).box >= 3 && !use[m.id]).map(m => m.id);
 }
 
+/* ================= TOAST ================= */
+function toast(msg, actionLabel, onAction, persist){
+  let host = document.getElementById("toastHost");
+  if(!host){ host = document.createElement("div"); host.id = "toastHost"; host.className = "toast-host"; document.body.appendChild(host); }
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.innerHTML = `<span>${msg}</span>`;
+  if(actionLabel){
+    const b = document.createElement("button");
+    b.className = "toast-act"; b.textContent = actionLabel;
+    b.addEventListener("click", () => { el.remove(); if(onAction) onAction(); });
+    el.appendChild(b);
+  }
+  const x = document.createElement("button");
+  x.className = "toast-x"; x.setAttribute("aria-label","Dismiss"); x.innerHTML = "&times;";
+  x.addEventListener("click", () => el.remove());
+  el.appendChild(x);
+  host.appendChild(el);
+  if(!persist) setTimeout(() => el.remove(), 6000);
+  return el;
+}
+
 /* ================= COMPOSE (Fuzzy-Goal brief) ================= */
 (function(){
   const $ = id => document.getElementById(id);
@@ -1235,6 +1455,8 @@ function blindSpots(){
   const ymd = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
   const jget = (k,d) => { try{ const v=sGet(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } };
   const jset = (k,v) => sSet(k, JSON.stringify(v));
+  const today = ymd;
+  const daysBetween = (a,b) => Math.round((new Date(b+"T00:00") - new Date(a+"T00:00"))/86400000);
   const anchor = id => `<button class="cmp-anchor" data-goto="${id}"><svg class="enso enso-inline" style="color:${DOMAINS[byId[id].d].color}"><use href="#e-dom-${byId[id].d}"/></svg>${byId[id].code}</button>`;
 
   // slot: {key, zone:'A'|'space'|'B', heading, move, models:[id], prompt}
@@ -1398,7 +1620,10 @@ function blindSpots(){
   }
 
   /* ---- storage ---- */
+  const RIPE_DAYS = 30;
   const briefs = () => jget("lattice_briefs", []);
+  function ripeBriefs(){ return briefs().filter(b => !b.outcome && daysBetween(b.date, today()) >= RIPE_DAYS); }
+  window.ripeBriefs = ripeBriefs;
   const saveBriefs = b => jset("lattice_briefs", b);
 
   /* ---- render ---- */
@@ -1459,7 +1684,27 @@ function blindSpots(){
         ${headlines}
         ${secs}
         ${oq}
+        ${outcomeHtml(b)}
       </div>`;
+  }
+
+  /* A brief with no outcome is a guess with no feedback. Ask once it's ripe. */
+  function briefAge(b){ return daysBetween(b.date, today()); }
+  function outcomeHtml(b){
+    if(b.outcome){
+      const lbl = b.outcome.worked==="yes" ? "worked" : b.outcome.worked==="no" ? "didn't work" : "not shipped";
+      return `<div class="cmp-outcome done"><span class="cmp-out-chip ${esc(b.outcome.worked)}">${lbl}</span>${b.outcome.note?`<span class="cmp-out-note">${esc(b.outcome.note)}</span>`:""}</div>`;
+    }
+    if(briefAge(b) < RIPE_DAYS) return "";
+    return `<div class="cmp-outcome">
+      <div class="cmp-out-h">Written ${briefAge(b)} days ago — did it work?</div>
+      <div class="cmp-out-row">
+        <button class="jr-btn" data-out="yes">It worked</button>
+        <button class="jr-btn" data-out="no">It didn't</button>
+        <button class="jr-btn" data-out="unshipped">Never shipped</button>
+      </div>
+      <input class="cmp-out-note-in" placeholder="One line — what actually moved, or why not (optional)">
+    </div>`;
   }
 
   function wireBrief(b){
@@ -1473,6 +1718,12 @@ function blindSpots(){
     }));
     root.querySelector(".cmp-copy").addEventListener("click", e => { copyBrief(b); const t=e.target; const o=t.textContent; t.textContent="Copied ✓"; setTimeout(()=>t.textContent=o,1400); });
     root.querySelector(".cmp-print").addEventListener("click", () => { syncPrintDrafts(); window.print(); });
+    root.querySelectorAll("[data-out]").forEach(btn => btn.addEventListener("click", () => {
+      const note = (root.querySelector(".cmp-out-note-in")||{}).value || "";
+      b.outcome = { worked: btn.dataset.out, note: note.trim(), date: today() };
+      persist(b); showBrief(b); renderSaved();
+      if(typeof onProgressChanged === "function") onProgressChanged();
+    }));
     root.querySelector(".cmp-del").addEventListener("click", () => {
       saveBriefs(briefs().filter(x=>x.id!==b.id));
       if(currentId===b.id){ currentId=null; cmpResults.innerHTML=""; }
@@ -1561,6 +1812,11 @@ function blindSpots(){
       headlines, openQuestions, built, sections:skel, source:"manual" };
     const all = briefs(); all.unshift(b); saveBriefs(all);
     showBrief(b); renderSaved();
+    if(typeof creditUsage === "function"){
+      const used = b.sections.reduce((a,x)=>a.concat(x.models||[]), []);
+      const n = creditUsage(used);
+      if(n) toast(`${n} model${n===1?"":"s"} advanced in your drill — using one counts as a review.`);
+    }
     if(errNote){ const n=document.createElement("div"); n.className="sit-note"; n.style.marginBottom="14px"; n.textContent=errNote; cmpResults.prepend(n); }
   }
 
@@ -1579,6 +1835,12 @@ function blindSpots(){
     setTimeout(() => { showBrief(b); renderSaved(); cmpResults.scrollIntoView({behavior:"smooth", block:"start"}); }, 80);
   };
 
+  window.openBrief = function(id){
+    const b = briefs().find(x => x.id === id);
+    if(!b) return;
+    showBrief(b); renderSaved();
+    cmpResults.scrollIntoView({behavior:"smooth", block:"start"});
+  };
   window.prefillCompose = function(opts){
     if(!cmpA) return;
     if(opts && opts.pointA) cmpA.value = opts.pointA;
@@ -1605,11 +1867,17 @@ function blindSpots(){
   window.bumpReviews = function(){ const s=stats(); s.reviews=(s.reviews||0)+1; jset("lattice_stats", s); };
   function streak(){ return jget("lattice_streak", {count:0,last:null}); }
   function dayComplete(){ return feynmanToday() && dueCards().length===0; }
+  /* One grace day per rolling week: a single missed day doesn't reset the streak.
+     Spacing survives a gap — the streak shouldn't punish what the schedule forgives. */
+  function graceAvailable(s){ return !s.graceUsed || daysBetween(s.graceUsed, today()) >= 7; }
   function maybeAwardStreak(){
     if(!dayComplete()) return;
     const s = streak(), t = today();
     if(s.last === t) return;
-    s.count = (s.last && daysBetween(s.last,t)===1) ? (s.count||0)+1 : 1;
+    const gap = s.last ? daysBetween(s.last, t) : null;
+    if(gap === 1){ s.count = (s.count||0)+1; }
+    else if(gap === 2 && graceAvailable(s)){ s.count = (s.count||0)+1; s.graceUsed = t; }
+    else { s.count = 1; }
     s.last = t; jset("lattice_streak", s);
   }
 
@@ -1626,7 +1894,53 @@ function blindSpots(){
     const w = jargonWords(text); if(!w.length) return `<p class="feyn-clear">No jargon — that's the mark of real understanding.</p>`;
     return `<p class="feyn-jargon">Plain-word check: ${w.map(x=>`<span class="jchip">${esc(x)}</span>`).join(" ")} — where you reached for a term, you found the edge of your understanding. Rewrite that spot.</p>`;
   }
-  let feynId = modelOfDay().id, feynForce = false;
+  let feynId = modelOfDay().id, feynForce = false, feynTighten = null;
+  const RESURFACE_MIN_AGE = 21, RESURFACE_COOLDOWN = 60;
+  /* A note written once and never re-read is a draft, not knowledge. When a model
+     reaches box 5, put your old explanation back in front of you. */
+  function resurfaceCandidate(){
+    const t = today();
+    const seen = new Set();
+    return feynLog().slice().reverse().find(e => {
+      if(!byId[e.id] || seen.has(e.id)) return false;
+      seen.add(e.id);
+      if(cardState(e.id).box < 5) return false;
+      if(daysBetween(e.date, t) < RESURFACE_MIN_AGE) return false;
+      if(e.resurfaced && daysBetween(e.resurfaced, t) < RESURFACE_COOLDOWN) return false;
+      return true;
+    });
+  }
+  function markResurfaced(entry, reaffirm){
+    const log = feynLog();
+    const hit = log.find(e => e.date===entry.date && e.id===entry.id && e.text===entry.text);
+    if(hit) hit.resurfaced = today();
+    if(reaffirm) log.push({ date:today(), id:entry.id, text:entry.text, kind:"reaffirmed" });
+    jset("lattice_feynman", log);
+  }
+
+  /* ---- usage as review ----
+     Reaching for a model in real work IS a retrieval event, and a stronger one than a
+     flashcard. Credit it like a "Good" grade, once per model per day. */
+  function creditUsage(ids){
+    const uniq = [...new Set((ids||[]).filter(id => byId[id]))];
+    if(!uniq.length) return 0;
+    const t = today(); let n = 0;
+    uniq.forEach(id => {
+      const st = cardState(id);
+      if(st.usedOn === t) return;
+      const box = Math.min(5, (st.box||1) + 1);
+      progress[id] = { box, due: Date.now() + INTERVALS[box-1]*DAY, usedOn: t };
+      n++;
+    });
+    if(n){
+      saveProgress(progress);
+      const st = stats(); st.usageReviews = (st.usageReviews||0) + n; jset("lattice_stats", st);
+      if(typeof buildDeckButtons === "function") buildDeckButtons();
+      if(typeof renderProgress === "function") renderProgress();
+    }
+    return n;
+  }
+  window.creditUsage = creditUsage;
 
   /* ---- journal ---- */
   function journal(){ return jget("lattice_journal", []); }
@@ -1639,9 +1953,13 @@ function blindSpots(){
   function renderStreak(){
     const s = streak(), el = $("streakBadge"); if(!el) return;
     const warm = s.last === today();
-    el.innerHTML = `<div class="streak-n">${s.count||0}</div><div class="streak-l">day${(s.count===1)?"":"s"}</div>`;
+    const graceSpent = s.graceUsed && daysBetween(s.graceUsed, today()) < 7;
+    el.innerHTML = `<div class="streak-n">${s.count||0}</div><div class="streak-l">day${(s.count===1)?"":"s"}</div>` +
+      (graceSpent ? `<div class="streak-grace" title="Grace day used — one per week">grace used</div>` : "");
     el.classList.toggle("cold", !warm);
-    el.title = warm ? "Today's loop is complete" : "Finish today's loop to keep the streak";
+    el.title = warm ? "Today's loop is complete"
+      : (graceAvailable(s) ? "Finish today's loop to keep the streak — one grace day in hand"
+                           : "Finish today's loop to keep the streak — grace already used this week");
   }
   function drillStep(){
     const dueList = dueCards();
@@ -1652,12 +1970,21 @@ function blindSpots(){
   function feynStep(){
     const done = feynmanToday() && !feynForce;
     let body;
+    const res = (!done && !feynTighten) ? resurfaceCandidate() : null;
+    if(res){
+      const age = daysBetween(res.date, today());
+      body = `<p class="step-note">You explained <b>${esc(byId[res.id].name)}</b> ${age} days ago, and it's now mastered. Still how you'd put it?</p>
+        <div class="feyn-text feyn-old">${highlightJargon(res.text)}</div>${jargonNote(res.text)}
+        <div class="step-act"><button class="btn primary js-feyn-keep">Still good</button><button class="mlink js-feyn-tighten">Tighten it</button><button class="mlink js-feyn-fresh">Explain something else</button></div>`;
+      return {done:false, html:`<div class="step"><div class="step-mark">${glyph("e-feyn")}</div><div class="step-body"><div class="step-kicker">Feynman · revisit</div><h4>Re-read your own words</h4>${body}</div></div>`};
+    }
     if(done){
       const e = feynLog().filter(x=>x.date===today()).slice(-1)[0];
       body = `<p class="step-note">You explained <b>${esc(byId[e.id].name)}</b> today.</p><div class="feyn-text">${highlightJargon(e.text)}</div>${jargonNote(e.text)}<div class="step-act"><button class="mlink js-feyn-another">Write another &#8599;</button></div>`;
     } else {
       const m = byId[feynId];
-      body = `<p class="step-note">Explain <b>${esc(m.name)}</b> to a smart 12-year-old — no jargon.</p><textarea class="feyn-input" id="feynInput" rows="3" placeholder="In plain words…"></textarea><div class="step-act"><button class="btn primary js-feyn-save">Save explanation</button><button class="mlink js-feyn-skip">Different model</button></div>`;
+      const seed = feynTighten ? esc(feynTighten.text) : "";
+      body = `<p class="step-note">${feynTighten ? `Tighten your explanation of <b>${esc(m.name)}</b> — cut the jargon you flagged.` : `Explain <b>${esc(m.name)}</b> to a smart 12-year-old — no jargon.`}</p><textarea class="feyn-input" id="feynInput" rows="3" placeholder="In plain words…">${seed}</textarea><div class="step-act"><button class="btn primary js-feyn-save">Save explanation</button><button class="mlink js-feyn-skip">Different model</button></div>`;
     }
     return {done, html:`<div class="step ${done?"done":""}"><div class="step-mark">${done?CHECK:glyph("e-feyn")}</div><div class="step-body"><div class="step-kicker">Feynman · elaboration</div><h4>Explain one model</h4>${body}</div></div>`};
   }
@@ -1676,7 +2003,11 @@ function blindSpots(){
       const s = streak();
       footer = `<div class="today-done"><div class="step-mark">${CHECK}</div><div><b>You're done for today.</b> ${s.count>1?`${s.count} days running — `:""}See you tomorrow.</div></div>`;
     }
-    el.innerHTML = d.html + f.html + a.html + footer;
+    const ripe = (typeof window.ripeBriefs === "function") ? window.ripeBriefs() : [];
+    const ripeHtml = ripe.length ? `<div class="step"><div class="step-mark">${glyph("e-compose")}</div><div class="step-body"><div class="step-kicker">Compose · feedback</div><h4>${ripe.length} brief${ripe.length===1?"":"s"} ready to score</h4><p class="step-note">Written over a month ago. Did the piece do its job? Scoring it is what turns briefs into a record of what works.</p><div class="step-act"><button class="btn js-open-brief">Open the brief</button></div></div></div>` : "";
+    el.innerHTML = d.html + f.html + a.html + ripeHtml + footer;
+    const ob = el.querySelector(".js-open-brief");
+    if(ob) ob.addEventListener("click", () => { document.querySelector('[data-tab=compose]').click(); setTimeout(()=>{ if(typeof openBrief === "function") openBrief(ripe[0].id); }, 80); });
 
     const drillBtn = el.querySelector(".js-drill");
     if(drillBtn) drillBtn.addEventListener("click", () => { document.querySelector('[data-tab=drill]').click(); startDeck("Due today", null); });
@@ -1685,8 +2016,15 @@ function blindSpots(){
       const t = ($("feynInput").value||"").trim();
       if(t.length < 15){ $("feynInput").focus(); $("feynInput").classList.add("shake"); setTimeout(()=>$("feynInput").classList.remove("shake"),400); return; }
       const log = feynLog(); log.push({date:today(), id:feynId, text:t}); jset("lattice_feynman", log);
-      feynForce = false; onProgressChanged();
+      if(feynTighten){ markResurfaced(feynTighten, false); feynTighten = null; }
+      feynForce = false; creditUsage([feynId]); onProgressChanged();
     });
+    const keep = el.querySelector(".js-feyn-keep");
+    if(keep) keep.addEventListener("click", () => { const c = resurfaceCandidate(); if(c) markResurfaced(c, true); onProgressChanged(); });
+    const tighten = el.querySelector(".js-feyn-tighten");
+    if(tighten) tighten.addEventListener("click", () => { const c = resurfaceCandidate(); if(c){ feynTighten = c; feynId = c.id; } renderAgenda(); });
+    const fresh = el.querySelector(".js-feyn-fresh");
+    if(fresh) fresh.addEventListener("click", () => { const c = resurfaceCandidate(); if(c) markResurfaced(c, false); feynId = modelOfDay().id; renderAgenda(); });
     const skip = el.querySelector(".js-feyn-skip");
     if(skip) skip.addEventListener("click", () => { feynId = randomOtherId(feynId); renderAgenda(); });
     const another = el.querySelector(".js-feyn-another");
@@ -1817,8 +2155,10 @@ function blindSpots(){
         const j = journal();
         j.push({ id:"j"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date:today(), decision:dec, expect:($("jExpect").value||"").trim(), prob:+$("jProb").value, models:[...jModels], outcome:null });
         saveJournal(j);
+        const credited = creditUsage([...jModels]);
         $("jDecision").value=""; $("jExpect").value=""; $("jProb").value=70; $("jProbV").textContent="70%"; jModels = new Set(); renderChips();
         renderJournalBody(); onProgressChanged();
+        if(credited) toast(`${credited} model${credited===1?"":"s"} advanced in your drill — using one counts as a review.`);
       });
       const list = $("jList");
       list.addEventListener("click", e => {
@@ -1973,7 +2313,7 @@ function blindSpots(){
       const q = input.value.trim();
       results.innerHTML = q
         ? `<div class="pal-empty">Nothing matches “${esc(q)}”.</div>`
-        : `<div class="pal-empty">Search across the 38 models, your briefs, logged decisions, and Feynman notes.</div>`;
+        : `<div class="pal-empty">Search across all ${MODELS.length} models, your briefs, logged decisions, and Feynman notes.</div>`;
       return;
     }
     results.innerHTML = items.map((it,i) => `
@@ -2035,6 +2375,28 @@ function blindSpots(){
 })();
 
 /* ================= PWA ================= */
+/* The service worker is cache-first, so a deployed change sits unused until the page
+   reloads. Say so instead of making the user guess. */
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
+  window.addEventListener("load", async () => {
+    try{
+      const reg = await navigator.serviceWorker.register("sw.js");
+      let reloading = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if(reloading) return;
+        reloading = true;
+        toast("A new version is ready.", "Reload", () => location.reload(), true);
+      });
+      reg.addEventListener("updatefound", () => {
+        const sw = reg.installing;
+        if(!sw) return;
+        sw.addEventListener("statechange", () => {
+          if(sw.state === "installed" && navigator.serviceWorker.controller && !reloading){
+            reloading = true;
+            toast("A new version is ready.", "Reload", () => location.reload(), true);
+          }
+        });
+      });
+    }catch(e){}
+  });
 }
