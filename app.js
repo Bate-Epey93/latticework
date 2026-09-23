@@ -1211,15 +1211,23 @@ const bm25 = (() => {
 })();
 
 /* ---- model chain: preferred model, automatic fallback to Opus 4.8 ---- */
-/* thinking:null means OMIT the field (Fable 5 has always-on thinking and 400s on
-   {"type":"disabled"}). Opus 5 accepts disabled only at effort <= high. */
+/* thinking:null means OMIT the field. Opus 5.5 and Fable 5.1 have always-on adaptive
+   thinking and return 400 on {"type":"disabled"} — effort is the only thinking control.
+   Opus 4.8 (the fallback) still accepts disabled, which apiRequest defaults to. */
 const AI_MODELS = {
-  "claude-opus-5":  { label:"Opus 5",  thinking:{type:"disabled"} },
-  "claude-fable-5": { label:"Fable 5", thinking:null },
+  "claude-opus-5-5": { label:"Opus 5.5",  thinking:null },
+  "claude-fable-5-1":{ label:"Fable 5.1", thinking:null },
 };
+const AI_DEFAULT = "claude-opus-5-5";
 const AI_FALLBACK = "claude-opus-4-8";
 const AI_FALLBACK_LABEL = "Opus 4.8";
-function preferredModel(){ const m = sGet("lattice_model"); return AI_MODELS[m] ? m : "claude-opus-5"; }
+/* Carry a saved preference forward instead of silently resetting it to the default. */
+const AI_SUCCEEDS = { "claude-opus-5":"claude-opus-5-5", "claude-fable-5":"claude-fable-5-1" };
+function preferredModel(){
+  let m = sGet("lattice_model");
+  if(m && AI_SUCCEEDS[m]){ m = AI_SUCCEEDS[m]; sSet("lattice_model", m); }
+  return AI_MODELS[m] ? m : AI_DEFAULT;
+}
 function modelLabel(id){ return (AI_MODELS[id] && AI_MODELS[id].label) || (id === AI_FALLBACK ? AI_FALLBACK_LABEL : id); }
 const modelSelect = document.getElementById("modelSelect");
 if (modelSelect) {
@@ -1302,7 +1310,7 @@ async function llmMatch(situation, key){
     "Choose the 3-5 MOST relevant models from the catalog below (fewer if only a few truly fit), ordered most relevant first. " +
     "For each, write `why` as ONE concrete sentence naming how that model bears on THIS specific situation — not a generic definition. " +
     "Optionally set `protocol` to the single most useful field protocol. Only pick ids from the catalog.\n\nCATALOG (id | name (domain): essence):\n" + CATALOG;
-  const r = await callClaude({ system, user: situation, schema: SIT_SCHEMA, maxTokens: 1500, effort: "low" }, key);
+  const r = await callClaude({ system, user: situation, schema: SIT_SCHEMA, maxTokens: 4000, effort: "low" }, key);
   return ((r.data.matches) || []).filter(m => byId[m.id]);
 }
 
@@ -1616,7 +1624,7 @@ function toast(msg, actionLabel, onAction, persist){
         "- Do not imply any guarantee of claim approval, payout amount, or timing.\n" +
         "- Name exclusions and limits openly rather than omitting them.\n" +
         "- Add anything a compliance reviewer must check to openQuestions." : "");
-    return callClaude({ system, user:`Write the ${job.label} brief.`, schema, maxTokens: 2200, effort: "medium" }, key);
+    return callClaude({ system, user:`Write the ${job.label} brief.`, schema, maxTokens: 8000, effort: "medium" }, key);
   }
 
   /* ---- storage ---- */
