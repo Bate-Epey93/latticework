@@ -311,6 +311,8 @@
           <option value="trans">SEO page — transactional / landing</option>
           <option value="copy">Marketing copy — PAS / BAB</option>
           <option value="strategy">Content strategy</option>
+          <option value="ticket">Support ticket — triage an inbound</option>
+          <option value="csreply">Support reply — draft the response</option>
         </select>
       </label>
       <label class="cmp-field"><span>Reader awareness <em>· optional</em></span>
@@ -324,11 +326,34 @@
         </select>
       </label>
     </div>
-    <label class="cmp-field"><span>Point A — where the reader is now</span>
+    <div class="cmp-row" id="cmpCsRow" hidden>
+      <label class="cmp-field"><span>Customer's mood</span>
+        <select id="cmpMood">
+          <option>Angry</option>
+          <option>Frustrated</option>
+          <option>Confused</option>
+          <option>Disappointed</option>
+          <option>Anxious</option>
+          <option selected>Calm</option>
+          <option>Appreciative</option>
+        </select>
+      </label>
+      <label class="cmp-field" id="cmpFwField"><span>Framework <em>· <span id="cmpFwHint"></span></em></span>
+        <select id="cmpFw">
+          <option value="auto" selected>Propose one for me</option>
+          <option value="LAST">LAST — Listen, Apologize, Solve, Thank</option>
+          <option value="HEARD">HEARD — Hear, Empathize, Apologize, Resolve, Diagnose</option>
+          <option value="LEARN">LEARN — Listen, Empathize, Apologize, Resolve, Notify</option>
+          <option value="HEAT">HEAT — Hear, Empathize, Apologize, Take action</option>
+          <option value="CARP">CARP — Control, Acknowledge, Refocus, Problem-solve</option>
+        </select>
+      </label>
+    </div>
+    <label class="cmp-field"><span id="cmpALabel">Point A — where the reader is now</span>
       <textarea id="cmpA" rows="2" placeholder="What do they believe, feel, or know right now? What are they searching for?"></textarea></label>
-    <label class="cmp-field"><span>Point B — where you need them to land</span>
+    <label class="cmp-field"><span id="cmpBLabel">Point B — where you need them to land</span>
       <textarea id="cmpB" rows="2" placeholder="The single change you want + one concrete next action (the CTA)."></textarea></label>
-    <div class="cmp-row">
+    <div class="cmp-row" id="cmpSeoRow">
       <label class="cmp-field"><span>Target keyword <em>· optional</em></span><input id="cmpKw" autocomplete="off" placeholder="e.g. whole life insurance cost"></label>
       <label class="cmp-field"><span>Tone <em>· optional</em></span><input id="cmpTone" autocomplete="off" placeholder="e.g. plain, reassuring"></label>
     </div>

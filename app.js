@@ -1533,8 +1533,60 @@ function toast(msg, actionLabel, onAction, persist){
       {key:"metric", zone:"B", heading:"Success — the end state and its signal", move:"Name the outcome and how you'll know", models:["reg","jtbd"],
        prompt:"What does success look like in 6–12 months, and the one or two metrics that would prove it?"},
     ]},
+    ticket: { label:"Support ticket", cs:true, slots:[
+      {key:"who", zone:"A", heading:"Who's writing, and the state they're in", move:"Name the customer, the channel, and the mood in one line", models:["aud","edata"],
+       prompt:"Who is this, how did they reach you, and what emotional state is the message actually in? Quote the phrase that shows it."},
+      {key:"ask", zone:"A", heading:"What they're actually asking for", move:"Separate the stated request from the underlying job", models:["jtbd","cok"],
+       prompt:"In one sentence, what do they want to happen? Then: what progress are they really after, which may not be what they literally asked for."},
+      {key:"facts", zone:"space", heading:"Facts vs claims", move:"Split what's verified from what's reported", models:["map","base"],
+       prompt:"What can you confirm from records (order, policy, dates, logs)? What is so far only the customer's account? Label each — do not blend them."},
+      {key:"gaps", zone:"space", heading:"Information needed to resolve", move:"The cheapest questions that would close the case", models:["hyp","whys"],
+       prompt:"What is missing? List the specific items (order number, screenshot, policy number, date of loss) that would actually let someone resolve this — cheapest to get first."},
+      {key:"severity", zone:"space", heading:"Impact and urgency", move:"Size it honestly: who is blocked, and what does waiting cost", models:["loss","ttc","ev"],
+       prompt:"What is broken for them right now, is there a deadline or money at risk, and does this block anyone else? Give a priority and the reason for it."},
+      {key:"next", zone:"B", heading:"Owner, next action, and when", move:"One owner, one action, one date", models:["doors","mos"],
+       prompt:"Who owns this, what is the single next action, and by when? Add a buffer — promise a date you would still hit on a bad week."},
+    ]},
+    csreply: { label:"Support reply", cs:true, body:["ack","explain","fix","objection","close"], slots:[
+      {key:"state", zone:"A", heading:"Read the room before writing", move:"Name their mood and what they currently believe", models:["edata","lab","aud"],
+       prompt:"What are they feeling, and what do they believe is true about you right now? Write for that person, not the average customer."},
+      {key:"framework", zone:"space", heading:"Framework to run", move:"Pick the recovery sequence the mood calls for", models:["pyr","nvc"],
+       prompt:"Which framework fits, and why this one? Its steps become the shape of the reply."},
+      {key:"ack", zone:"space", heading:"Acknowledge and empathize", move:"Camera-level facts, then the feeling — no defending yet", models:["nvc","lab"],
+       prompt:"Reflect back what happened in their words, then name the impact on them. Not 'sorry you feel that way' — apologize for the experience, not for their reaction."},
+      {key:"explain", zone:"space", heading:"Explain in plain words", move:"What happened, jargon-free, blaming neither them nor a colleague", models:["cok","fae"],
+       prompt:"Explain the cause so a stranger could follow it. No internal jargon, no policy-speak, no implying they did it wrong."},
+      {key:"fix", zone:"space", heading:"What you're doing about it", move:"The action, the owner, the timeline — or the options", models:["doors","mos"],
+       prompt:"State exactly what happens next and when. If there are options, give two and recommend one. Promise a date you can beat."},
+      {key:"objection", zone:"space", heading:"Handle the pushback coming", move:"Answer the reply they are about to send", models:["steel","diss"],
+       prompt:"What will they push back on — cost, delay, fault, precedent? Address it now, and leave them a face-saving way to accept the outcome."},
+      {key:"close", zone:"B", heading:"Close and hand back control", move:"One next step, clearly theirs or clearly yours", models:["aud","pos"],
+       prompt:"End with who does what next. If nothing is needed from them, say so explicitly — that sentence is what stops the follow-up email."},
+    ]},
   };
   const ZONE = { A:"Point A", space:"Challenge space", B:"Point B", check:"Before publish" };
+
+  /* Service-recovery frameworks — published sequences. The reply takes the shape of
+     whichever one the mood calls for. */
+  const CS_FRAMEWORKS = {
+    LAST:  { label:"LAST",  note:"General complaint handling — simple and fast.",
+             steps:[["L","Listen","Let them finish; reflect the problem back"],["A","Apologize","Own the impact without hedging"],["S","Solve","The fix, or the plan and the date"],["T","Thank","Thank them for raising it"]] },
+    HEARD: { label:"HEARD", note:"Service recovery when trust took the damage, not just the order.",
+             steps:[["H","Hear","Let the whole story out first"],["E","Empathize","Name the impact on them"],["A","Apologize","Sincere, unconditional, for the experience"],["R","Resolve","Fix it, or say exactly what you will do"],["D","Diagnose","Find the root cause so it stops recurring"]] },
+    LEARN: { label:"LEARN", note:"Best when the customer is confused and needs to understand.",
+             steps:[["L","Listen","Hear the full account"],["E","Empathize","Acknowledge the frustration"],["A","Apologize","For the experience"],["R","Resolve","Correct it"],["N","Notify","Close the loop and explain what changed"]] },
+    HEAT:  { label:"HEAT",  note:"De-escalation first — for anger, before problem-solving can land.",
+             steps:[["H","Hear","No interrupting; take notes"],["E","Empathize","Validate the feeling without conceding fault"],["A","Apologize","For the experience they had"],["T","Take action","State the action, owner, and timeline"]] },
+    CARP:  { label:"CARP",  note:"Bacal's conflict model — get control before solving.",
+             steps:[["C","Control","Steady the exchange; set a calm, confident tone"],["A","Acknowledge","Validate their specific concern"],["R","Refocus","Turn the energy from problem to solution"],["P","Problem-solve","Concrete, actionable resolution"]] },
+  };
+  const CS_MOODS = ["Angry","Frustrated","Confused","Disappointed","Anxious","Calm","Appreciative"];
+  /* Offline proposal and the model's starting suggestion. Anger needs de-escalation
+     before problem-solving; broken trust needs root-cause; confusion needs teaching. */
+  const MOOD_FRAMEWORK = { Angry:"HEAT", Frustrated:"LAST", Confused:"LEARN", Disappointed:"HEARD", Anxious:"CARP", Calm:"LAST", Appreciative:"LAST" };
+  function proposeFramework(mood){ return MOOD_FRAMEWORK[mood] || "LAST"; }
+  const isCS = job => !!(JOBS[job] && JOBS[job].cs);
+
   window.JOB_LABELS = Object.fromEntries(Object.entries(JOBS).map(([k,v]) => [k, v.label]));
 
   /* Insurance overlay — a reweight on top of any job, not a job of its own.
@@ -1601,16 +1653,42 @@ function toast(msg, actionLabel, onAction, persist){
     const job = JOBS[intake.job];
     const authored = skel.filter(s => s.zone !== "check");
     const slotSpec = authored.map(s => `- ${s.key} [${ZONE[s.zone]}] "${s.heading}" — ${s.move}. Anchoring models: ${s.models.map(id=>byId[id].name).join(", ")}. Writer prompt: ${slotPrompt(intake.job, s.key)}`).join("\n");
+    const cs = isCS(intake.job);
     const schema = {
-      type:"object", additionalProperties:false, required:["headlines","sections","openQuestions"],
+      type:"object", additionalProperties:false,
+      required: cs ? ["headlines","sections","openQuestions","framework","frameworkWhy","nextSteps"]
+                   : ["headlines","sections","openQuestions"],
       properties:{
         headlines:{ type:"array", items:{type:"string"} },
         sections:{ type:"array", items:{ type:"object", additionalProperties:false, required:["key","draft"],
           properties:{ key:{ type:"string", enum: authored.map(s=>s.key) }, draft:{ type:"string" } } } },
-        openQuestions:{ type:"array", items:{type:"string"} }
+        openQuestions:{ type:"array", items:{type:"string"} },
+        ...(cs ? {
+          framework:{ type:"string", enum: Object.keys(CS_FRAMEWORKS) },
+          frameworkWhy:{ type:"string" },
+          nextSteps:{ type:"array", items:{type:"string"} }
+        } : {})
       }
     };
-    const system =
+    const fwPick = intake.framework && intake.framework !== "auto" ? intake.framework : proposeFramework(intake.mood);
+    const fwSpec = Object.entries(CS_FRAMEWORKS).map(([k,v]) =>
+      `- ${k}: ${v.steps.map(([l,n])=>l+"="+n).join(", ")}. ${v.note}`).join("\n");
+    const csSystem =
+      `You are drafting for a customer-service professional. Job type: ${job.label}.\n\n` +
+      (intake.job === "ticket"
+        ? `Turn the customer's raw message into a clear internal TICKET. Fill every section below with concrete, specific content drawn from the message — never generic filler. Keep what the customer actually said separate from what you infer.\n`
+        : `Draft a REPLY the agent can send with light edits. Each body section is a beat of the message; write it in the sendable voice — second person, warm, plain, no corporate hedging and no jargon. Sections 'state' and 'framework' are notes for the agent, not part of the message.\n`) +
+      `\nFRAMEWORKS AVAILABLE:\n${fwSpec}\n` +
+      (intake.framework && intake.framework !== "auto"
+        ? `\nUse the ${fwPick} framework — the agent chose it. Set 'framework' to ${fwPick} and say in 'frameworkWhy' how it fits this message.\n`
+        : `\nChoose the framework this message actually calls for and set 'framework' to it. ${fwPick} is the default for a ${intake.mood||"neutral"} customer — depart from it if the message warrants, and justify the choice in 'frameworkWhy' in one sentence.\n`) +
+      `\nAlso return:\n- 'headlines': 2-3 subject-line options.\n- 'openQuestions': the specific information still needed to resolve this — the actual questions to ask, cheapest-to-get first.\n- 'nextSteps': the concrete next actions, each with an owner and a timeframe.\n\n` +
+      `Never invent an order number, policy number, amount, date, or commitment you were not given — write [verify] instead. Never promise a specific refund, payout, or approval unless the message states it is already agreed.\n\n` +
+      `SECTIONS:\n${slotSpec}\n\n` +
+      `CUSTOMER'S MESSAGE:\n${intake.pointA}\n\nDESIRED RESOLUTION: ${intake.pointB}` +
+      (intake.mood?`\nRead mood: ${intake.mood}`:"") + (intake.tone?`\nHouse tone: ${intake.tone}`:"") +
+      (intake.insurance ? "\n\nINSURANCE RULES (regulated, YMYL): no absolute terms ('all', 'full', 'guaranteed', 'never denied'); no invented figures or claim outcomes; never imply a claim will be approved, nor its amount or timing; name exclusions and limits openly; add anything a compliance reviewer must check to openQuestions." : "");
+    const system = cs ? csSystem :
       `You write a working content BRIEF for a professional copywriter — structure and direction they write the piece FROM, not finished copy. Job type: ${job.label}. ` +
       `The brief has fixed sections (below), each anchored to a mental model. For EACH section, write 'draft' as 2–4 sentences of concrete direction tailored to THIS reader crossing (Point A to Point B) — what to cover and the move to make, in the writer's shoes, not a definition of the model. ` +
       `Also give 2–3 'headlines' options and a short 'openQuestions' list of things to verify or research. Keep it tight and specific to the keyword and audience. Do not invent statistics; where a figure or claim is needed, say [verify].\n\n` +
@@ -1624,7 +1702,7 @@ function toast(msg, actionLabel, onAction, persist){
         "- Do not imply any guarantee of claim approval, payout amount, or timing.\n" +
         "- Name exclusions and limits openly rather than omitting them.\n" +
         "- Add anything a compliance reviewer must check to openQuestions." : "");
-    return callClaude({ system, user:`Write the ${job.label} brief.`, schema, maxTokens: 8000, effort: "medium" }, key);
+    return callClaude({ system, user: cs ? `Produce the ${job.label}.` : `Write the ${job.label} brief.`, schema, maxTokens: 8000, effort: "medium" }, key);
   }
 
   /* ---- storage ---- */
@@ -1636,10 +1714,36 @@ function toast(msg, actionLabel, onAction, persist){
 
   /* ---- render ---- */
   const cmpJob=$("cmpJob"), cmpA=$("cmpA"), cmpB=$("cmpB"), cmpAware=$("cmpAware"), cmpKw=$("cmpKw"), cmpTone=$("cmpTone"), cmpIns=$("cmpIns"),
+        cmpMood=$("cmpMood"), cmpFw=$("cmpFw"), cmpCsRow=$("cmpCsRow"), cmpSeoRow=$("cmpSeoRow"), cmpALabel=$("cmpALabel"), cmpBLabel=$("cmpBLabel"),
         cmpGo=$("cmpGo"), cmpMode=$("cmpMode"), cmpResults=$("cmpResults"), cmpSaved=$("cmpSaved");
   let currentId = null;
 
   window.updateComposeMode = updateComposeMode;
+  /* A support job's Point A is the customer's actual message, not something the user
+     composes — so the same two fields get re-labelled rather than duplicated. */
+  function syncJobFields(){
+    if(!cmpCsRow) return;
+    const cs = isCS(cmpJob.value);
+    cmpCsRow.hidden = !cs;
+    const fwField = $("cmpFwField");
+    if(fwField) fwField.hidden = !(cs && !!JOBS[cmpJob.value].body);
+    if(cmpSeoRow) cmpSeoRow.hidden = cs;
+    if(cmpAware) cmpAware.closest(".cmp-field").hidden = cs;
+    cmpALabel.textContent = cs ? "The customer's message — paste it" : "Point A — where the reader is now";
+    cmpBLabel.textContent = cs ? "What a good resolution looks like" : "Point B — where you need them to land";
+    cmpA.placeholder = cs ? "Paste the email, chat, or call note exactly as it came in."
+                          : "What do they believe, feel, or know right now? What are they searching for?";
+    cmpB.placeholder = cs ? "The outcome you can actually deliver, and how you want them feeling at the end."
+                          : "The single change you want + one concrete next action (the CTA).";
+    cmpGo.textContent = cs ? (cmpJob.value === "ticket" ? "Build the ticket" : "Draft the reply") : "Build the brief";
+    syncFwHint();
+  }
+
+  function syncFwHint(){
+    const h = $("cmpFwHint"); if(!h) return;
+    h.textContent = (cmpFw && cmpFw.value === "auto") ? `${proposeFramework(cmpMood?cmpMood.value:"")} for this mood` : "";
+  }
+
   function updateComposeMode(){
     if(!cmpMode) return;
     cmpMode.textContent = getApiKey() ? `drafted by ${modelLabel(preferredModel())}` : "structured skeleton — add a key in settings for a first-pass draft";
@@ -1677,21 +1781,33 @@ function toast(msg, actionLabel, onAction, persist){
         <div class="cmp-print-draft" aria-hidden="true"></div>
       </div>`;
     }).join("");
+    const cs = isCS(b.job);
+    const oqH = cs ? "Information needed to resolve" : "Verify / open questions";
     const oq = (b.openQuestions&&b.openQuestions.length)
-      ? `<div class="cmp-oq"><div class="cmp-oq-h">Verify / open questions</div><ul>${b.openQuestions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>` : "";
+      ? `<div class="cmp-oq"><div class="cmp-oq-h">${oqH}</div><ul>${b.openQuestions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>` : "";
+    const ns = (b.nextSteps&&b.nextSteps.length)
+      ? `<div class="cmp-oq cmp-next"><div class="cmp-oq-h">Next steps</div><ul>${b.nextSteps.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>` : "";
+    const fwObj = b.framework && CS_FRAMEWORKS[b.framework];
+    const fw = fwObj ? `<div class="cmp-fw">
+        <div class="cmp-fw-h"><span class="cmp-fw-name">${esc(fwObj.label)}</span><span class="cmp-fw-tag">${b.frameworkAuto?"proposed":"chosen"}</span></div>
+        ${b.frameworkWhy?`<p class="cmp-fw-why">${esc(b.frameworkWhy)}</p>`:`<p class="cmp-fw-why">${esc(fwObj.note)}</p>`}
+        <ol class="cmp-fw-steps">${fwObj.steps.map(([l,n,m])=>`<li><b>${l}</b> <span>${esc(n)}</span> — ${esc(m)}</li>`).join("")}</ol>
+      </div>` : "";
     return `
       <div class="cmp-brief" data-id="${b.id}">
         <div class="cmp-brief-top">
-          <div class="cmp-brief-meta">${JOBS[b.job].label}${b.insurance?` · <span class="cmp-ins-chip">insurance</span>`:""}${b.keyword?` · <b>${esc(b.keyword)}</b>`:""} · ${b.built && b.built!=="offline" ? esc(modelLabel(b.built))+" draft" : "skeleton"}</div>
-          <div class="cmp-brief-act"><button class="mlink cmp-copy">Copy brief</button><button class="mlink cmp-print">Print</button><button class="mlink cmp-del">Delete</button></div>
+          <div class="cmp-brief-meta">${JOBS[b.job].label}${b.mood?` · <span class="cmp-mood-chip">${esc(b.mood)}</span>`:""}${b.framework?` · <b>${esc(b.framework)}</b>`:""}${b.insurance?` · <span class="cmp-ins-chip">insurance</span>`:""}${b.keyword?` · <b>${esc(b.keyword)}</b>`:""} · ${b.built && b.built!=="offline" ? esc(modelLabel(b.built))+" draft" : "skeleton"}</div>
+          <div class="cmp-brief-act">${(JOBS[b.job].body?`<button class="mlink cmp-copy-reply">Copy reply</button>`:"")}<button class="mlink cmp-copy">Copy ${cs?"ticket":"brief"}</button><button class="mlink cmp-print">Print</button><button class="mlink cmp-del">Delete</button></div>
         </div>
         <div class="cmp-ab-row">
-          <div class="cmp-ab-box cmp-zone-A"><span class="cmp-zone-tag">Point A — reader now</span><p contenteditable="true" class="cmp-ab" data-ab="pointA">${esc(b.pointA)}</p></div>
-          <div class="cmp-ab-box cmp-zone-B"><span class="cmp-zone-tag">Point B — land</span><p contenteditable="true" class="cmp-ab" data-ab="pointB">${esc(b.pointB)}</p></div>
+          <div class="cmp-ab-box cmp-zone-A"><span class="cmp-zone-tag">${cs?"Customer's message":"Point A — reader now"}</span><p contenteditable="true" class="cmp-ab" data-ab="pointA">${esc(b.pointA)}</p></div>
+          <div class="cmp-ab-box cmp-zone-B"><span class="cmp-zone-tag">${cs?"Resolution":"Point B — land"}</span><p contenteditable="true" class="cmp-ab" data-ab="pointB">${esc(b.pointB)}</p></div>
         </div>
         ${headlines}
+        ${fw}
         ${secs}
         ${oq}
+        ${ns}
         ${outcomeHtml(b)}
       </div>`;
   }
@@ -1726,6 +1842,11 @@ function toast(msg, actionLabel, onAction, persist){
     }));
     root.querySelector(".cmp-copy").addEventListener("click", e => { copyBrief(b); const t=e.target; const o=t.textContent; t.textContent="Copied ✓"; setTimeout(()=>t.textContent=o,1400); });
     root.querySelector(".cmp-print").addEventListener("click", () => { syncPrintDrafts(); window.print(); });
+    const cr = root.querySelector(".cmp-copy-reply");
+    if(cr) cr.addEventListener("click", e => {
+      copyText(replyText(b));
+      const t=e.target, o=t.textContent; t.textContent="Copied ✓"; setTimeout(()=>t.textContent=o,1400);
+    });
     root.querySelectorAll("[data-out]").forEach(btn => btn.addEventListener("click", () => {
       const note = (root.querySelector(".cmp-out-note-in")||{}).value || "";
       b.outcome = { worked: btn.dataset.out, note: note.trim(), date: today() };
@@ -1754,11 +1875,20 @@ function toast(msg, actionLabel, onAction, persist){
   function showBrief(b){ currentId=b.id; cmpResults.innerHTML = briefHtml(b); wireBrief(b); }
 
   function toMarkdown(b){
-    let md = `# ${JOBS[b.job].label} brief\n\n`;
+    const cs = isCS(b.job);
+    let md = `# ${JOBS[b.job].label}${cs?"":" brief"}\n\n`;
+    if(cs && b.mood) md += `**Customer mood:** ${b.mood}  \n`;
     if(b.keyword) md += `**Keyword:** ${b.keyword}  \n`;
-    md += `**Point A (reader now):** ${b.pointA}\n\n**Point B (goal + CTA):** ${b.pointB}\n\n`;
+    md += cs ? `**Customer's message:** ${b.pointA}\n\n**Resolution sought:** ${b.pointB}\n\n`
+             : `**Point A (reader now):** ${b.pointA}\n\n**Point B (goal + CTA):** ${b.pointB}\n\n`;
+    const fwo = b.framework && CS_FRAMEWORKS[b.framework];
+    if(fwo){
+      md += `## Framework: ${fwo.label} (${b.frameworkAuto?"proposed":"chosen"})\n`;
+      if(b.frameworkWhy) md += `${b.frameworkWhy}\n\n`;
+      md += fwo.steps.map(([l,n,m])=>`- **${l}** ${n} — ${m}`).join("\n") + "\n\n";
+    }
     if(b.headlines&&b.headlines.length) md += `## Headline options\n` + b.headlines.map(h=>`- ${h}`).join("\n") + "\n\n";
-    md += `## Outline\n\n`;
+    md += cs ? (b.job==="ticket" ? `## Ticket\n\n` : `## Reply\n\n`) : `## Outline\n\n`;
     let n = 0;
     b.sections.forEach(s => {
       if(s.zone === "check") return;
@@ -1766,16 +1896,22 @@ function toast(msg, actionLabel, onAction, persist){
       md += `### ${n}. ${s.heading} — via ${s.models.map(id=>byId[id].name).join(", ")}\n`;
       md += `_${s.move}_\n\n${s.draft||""}\n\n`;
     });
-    if(b.openQuestions&&b.openQuestions.length) md += `## Verify / open questions\n` + b.openQuestions.map(q=>`- ${q}`).join("\n") + "\n\n";
+    if(b.openQuestions&&b.openQuestions.length) md += `## ${cs?"Information needed to resolve":"Verify / open questions"}\n` + b.openQuestions.map(q=>`- ${q}`).join("\n") + "\n\n";
+    if(b.nextSteps&&b.nextSteps.length) md += `## Next steps\n` + b.nextSteps.map(q=>`- [ ] ${q}`).join("\n") + "\n\n";
     const chk = b.sections.find(s => s.zone === "check");
     if(chk) md += `## ${chk.heading}\n_${chk.move}_\n\n` + (chk.checklist||[]).map(c=>`- [ ] ${c}`).join("\n") + "\n";
     return md;
   }
-  function copyBrief(b){
-    const md = toMarkdown(b);
-    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(md).catch(()=>fallbackCopy(md));
-    else fallbackCopy(md);
+  /* The sendable message only — the analysis and framework notes are for the agent. */
+  function replyText(b){
+    const body = (JOBS[b.job] && JOBS[b.job].body) || [];
+    return body.map(k => (b.sections.find(s=>s.key===k)||{}).draft || "").filter(t=>t.trim()).join("\n\n");
   }
+  function copyText(t){
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).catch(()=>fallbackCopy(t));
+    else fallbackCopy(t);
+  }
+  function copyBrief(b){ copyText(toMarkdown(b)); }
   function fallbackCopy(text){ const t=document.createElement("textarea"); t.value=text; document.body.appendChild(t); t.select(); try{document.execCommand("copy");}catch(e){} t.remove(); }
 
   function renderSaved(){
@@ -1796,10 +1932,16 @@ function toast(msg, actionLabel, onAction, persist){
     const pointA=(cmpA.value||"").trim(), pointB=(cmpB.value||"").trim();
     if(pointA.length<6 || pointB.length<6){ (pointA.length<6?cmpA:cmpB).focus(); return; }
     const insurance = !!(cmpIns && cmpIns.checked);
-    const intake = { job:cmpJob.value, pointA, pointB, awareness:cmpAware.value, keyword:(cmpKw.value||"").trim(), tone:(cmpTone.value||"").trim(), insurance };
+    const cs = isCS(cmpJob.value);
+    const mood = cs && cmpMood ? cmpMood.value : "";
+    const fwChoice = cs && cmpFw ? cmpFw.value : "";
+    const intake = { job:cmpJob.value, pointA, pointB, awareness:cmpAware.value, keyword:(cmpKw.value||"").trim(), tone:(cmpTone.value||"").trim(), insurance, mood, framework:fwChoice };
     const skel = skeleton(intake.job, insurance);
     const key = getApiKey();
-    let headlines=[], openQuestions=[], built="offline", errNote="";
+    let headlines=[], openQuestions=[], built="offline", errNote="", nextSteps=[], frameworkWhy="";
+    /* Offline still resolves a framework, so the skeleton is useful without a key. */
+    const wantsFw = cs && !!JOBS[cmpJob.value].body;   // the reply runs a framework; a ticket doesn't
+    let framework = wantsFw ? (fwChoice && fwChoice !== "auto" ? fwChoice : proposeFramework(mood)) : "";
     if(key && navigator.onLine){
       cmpResults.innerHTML = `<div class="sit-spinner"><i></i>Building your brief with Claude…</div>`;
       cmpGo.disabled = true;
@@ -1807,6 +1949,8 @@ function toast(msg, actionLabel, onAction, persist){
         const res = await llmBrief(intake, key, skel);
         const r = res.data;
         headlines = r.headlines||[]; openQuestions = r.openQuestions||[];
+        if(r.framework && CS_FRAMEWORKS[r.framework]) framework = r.framework;
+        frameworkWhy = r.frameworkWhy || ""; nextSteps = r.nextSteps || [];
         (r.sections||[]).forEach(rs => { const sec = skel.find(x=>x.key===rs.key); if(sec) sec.draft = rs.draft||""; });
         built = res.model;
       }catch(err){
@@ -1817,6 +1961,7 @@ function toast(msg, actionLabel, onAction, persist){
     }
     const b = { id:"b"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), date:ymd(),
       job:intake.job, insurance, pointA, pointB, awareness:intake.awareness, keyword:intake.keyword, tone:intake.tone,
+      mood, framework, frameworkWhy, frameworkAuto: !(fwChoice && fwChoice !== "auto"), nextSteps,
       headlines, openQuestions, built, sections:skel, source:"manual" };
     const all = briefs(); all.unshift(b); saveBriefs(all);
     showBrief(b); renderSaved();
@@ -1830,6 +1975,10 @@ function toast(msg, actionLabel, onAction, persist){
 
   if(cmpGo){
     cmpGo.addEventListener("click", build);
+    cmpJob.addEventListener("change", syncJobFields);
+    if(cmpMood) cmpMood.addEventListener("change", syncFwHint);
+    if(cmpFw) cmpFw.addEventListener("change", syncFwHint);
+    syncJobFields();
     window.addEventListener("online", updateComposeMode);
     window.addEventListener("offline", updateComposeMode);
     updateComposeMode();

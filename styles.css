@@ -1054,3 +1054,22 @@ html[data-theme="dark"] .cmp-out-chip.yes{background:rgba(78,124,78,.2);color:#9
 html[data-theme="dark"] .cmp-out-chip.no{background:rgba(179,64,46,.2);color:#E89B8B}
 .cmp-out-note{font-size:13.5px;color:var(--muted)}
 @media print{.cmp-outcome{display:none !important}}
+
+/* ---------- compose: customer service ---------- */
+.cmp-mood-chip{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  padding:2px 7px;border-radius:99px;background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.cmp-fw{margin-bottom:16px;padding:18px 20px;border-radius:var(--radius-sm);
+  background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--d-com);box-shadow:var(--shadow)}
+.cmp-fw-h{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.cmp-fw-name{font-family:'Shippori Mincho',serif;font-size:19px;font-weight:600;letter-spacing:.04em;color:var(--d-com)}
+.cmp-fw-tag{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.cmp-fw-why{font-size:14px;color:var(--muted);margin-bottom:12px;max-width:68ch}
+.cmp-fw-steps{list-style:none;margin:0;counter-reset:fw}
+.cmp-fw-steps li{position:relative;padding-left:22px;font-size:13.5px;color:var(--muted);margin-bottom:7px;line-height:1.5;max-width:68ch}
+.cmp-fw-steps li::before{content:"";position:absolute;left:7px;top:9px;width:5px;height:5px;border-radius:50%;background:var(--d-com);opacity:.55}
+.cmp-fw-steps b{display:inline-block;min-width:1.2em;color:var(--d-com);font-weight:700}
+.cmp-fw-steps span{color:var(--ink);font-weight:600}
+.cmp-next{border-left:3px solid var(--d-life);background:var(--surface)}
+.cmp-next li{color:var(--ink)}
+#cmpFwHint{color:var(--accent)}
+@media print{.cmp-fw{break-inside:avoid}}
